@@ -28,7 +28,9 @@ SECRET_KEY = 'django-insecure-as4^0st8x+y_=!*1h75p7kxi^q!+0&0xqr-^lvw&nay4fyh85d
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# Разрешаем доступ из любых хостов для тестирования сервера
+# В продакшене нужно указать конкретные домены
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -41,11 +43,28 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     
+<<<<<<< HEAD:sportcrm/settings.py
     # Third party apps
     'tailwind',
     'django_browser_reload',
     # 'django_filters',  # Временно отключен для тестирования миграций
     'storages',
+=======
+    # Сторонние приложения
+    'tailwind',
+    'sporttheme',  # Приложение для Tailwind темы
+    'theme',  # Дополнительное приложение
+    'django_browser_reload',  # Автообновление браузера при разработке
+    'django_filters',  # Фильтрация данных
+    'storages',  # Для работы с внешними хранилищами (Supabase Storage)
+    
+    # Собственные приложения
+    'core',  # Базовая структура
+    'groups',  # Управление спортивными группами
+    'athletes',  # Спортсмены и их документы
+    'attendance',  # Посещаемость
+    'payments',  # Оплата
+>>>>>>> c61a5f36:config/settings.py
 ]
 
 MIDDLEWARE = [
@@ -57,7 +76,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+<<<<<<< HEAD:sportcrm/settings.py
     'django_browser_reload.middleware.BrowserReloadMiddleware',
+=======
+    'django_browser_reload.middleware.BrowserReloadMiddleware',  # Автообновление браузера
+>>>>>>> c61a5f36:config/settings.py
 ]
 
 ROOT_URLCONF = 'sportcrm.urls'
@@ -65,13 +88,14 @@ ROOT_URLCONF = 'sportcrm.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],  # Папка для общих шаблонов
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.media',  # Для работы с медиа в шаблонах
             ],
         },
     },
@@ -142,7 +166,24 @@ LOCALE_PATHS = [
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'  # Папка для собранных статических файлов
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',  # Папка для статических файлов проекта
+]
+
+# Media files (файлы загружаемые пользователями)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'  # Папка для медиа файлов
+
+# Настройки Tailwind
+TAILWIND_APP_NAME = 'sporttheme'  # Название приложения для Tailwind темы
+INTERNAL_IPS = [
+    "127.0.0.1",  # Для django-browser-reload
+]
+
+# Настройки Node.js для Tailwind (локальная копия в проекте)
+NPM_BIN_PATH = BASE_DIR / "nodejs" / "npm.cmd"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

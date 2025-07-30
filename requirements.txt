@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Django==5.2.4
 django-tailwind==4.2.0
 django-browser-reload==1.14.0
@@ -9,3 +10,34 @@ django-storages==1.14.6
 boto3==1.39.16
 python-dotenv==1.1.1
 psycopg2-binary==2.9.10
+=======
+# Основные зависимости Django проекта
+Django==5.2.4
+python-dotenv==1.1.1
+
+# UI и стили
+django-tailwind==4.2.0
+
+# Экспорт файлов
+openpyxl==3.1.5
+reportlab==4.4.3
+weasyprint==66.0  # Для современной PDF генерации
+pandas==2.3.1  # Для обработки данных
+
+# Базы данных
+psycopg2-binary==2.9.10
+
+# Фильтрация
+django-filter==24.3
+
+# Хранение файлов и AWS
+django-storages==1.14.6
+boto3==1.39.16  # Для работы с AWS S3
+supabase==2.3.1  # Для работы с Supabase API
+
+# Обработка изображений
+pillow==11.3.0
+
+# Разработка
+django-browser-reload==1.14.0
+>>>>>>> c61a5f36

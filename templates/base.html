@@ -1,0 +1,129 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SportCRM - Управление спортивной секцией{% endblock %}</title>
+    
+    <!-- Tailwind CSS -->
+    <link rel="stylesheet" type="text/css" href="{% static 'css/tailwind.css' %}">
+    
+    <!-- HTMX для интерактивности без JavaScript -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    
+    <!-- Alpine.js для реактивности -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js"></script>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Навигация -->
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <h1 class="text-xl font-bold text-gray-800">SportCRM</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="{% url 'admin:index' %}" class="btn-primary">Админ</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Основной контент -->
+    <main class="max-w-7xl mx-auto py-6 px-4">
+        {% block content %}
+        <div class="text-center mb-8">
+            <h2 class="text-3xl font-bold text-gray-900 mb-4">Добро пожаловать в SportCRM</h2>
+            <p class="text-lg text-gray-600">Система управления спортивной секцией</p>
+        </div>
+
+        <!-- Демонстрация Alpine.js -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6" x-data="{ count: 0, name: '' }">
+            <h3 class="text-lg font-semibold mb-4">🧪 Тест Alpine.js</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Ваше имя:</label>
+                    <input type="text" x-model="name" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           placeholder="Введите имя">
+                </div>
+                <div x-show="name" class="text-green-600">
+                    <span>Привет, </span><span x-text="name"></span>!
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button @click="count++" 
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+                        Увеличить
+                    </button>
+                    <span class="text-lg font-semibold">Счётчик: <span x-text="count"></span></span>
+                    <button @click="count = 0" 
+                            class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded">
+                        Сброс
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Демонстрация HTMX -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold mb-4">🚀 Тест HTMX</h3>
+            <div class="space-y-4">
+                <button hx-get="{% url 'ping' %}" 
+                        hx-target="#htmx-result"
+                        hx-indicator="#loading"
+                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+                    Проверить сервер
+                </button>
+                <div id="loading" class="htmx-indicator text-blue-600">
+                    ⏳ Загрузка...
+                </div>
+                <div id="htmx-result" class="p-4 bg-gray-50 rounded border"></div>
+            </div>
+        </div>
+        {% endblock %}
+    </main>
+
+    <!-- Django Browser Reload для разработки -->
+    {% if debug %}
+        {% load django_browser_reload %}
+        {% django_browser_reload_script %}
+    {% endif %}
+
+    {% block extra_js %}{% endblock %}
+    
+    <!-- HTMX конфигурация -->
+    <script>
+        // Автоматически добавляем CSRF токен во все HTMX запросы
+        document.body.addEventListener('htmx:configRequest', (event) => {
+            event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+        });
+        
+        // Логирование успешных HTMX запросов
+        document.body.addEventListener('htmx:afterRequest', (event) => {
+            if (event.detail.successful) {
+                console.log('HTMX запрос выполнен успешно');
+            } else {
+                console.error('HTMX запрос завершился с ошибкой');
+            }
+        });
+        
+        // Обработка ошибок HTMX
+        document.body.addEventListener('htmx:responseError', (event) => {
+            console.error('Ошибка HTMX:', event.detail);
+        });
+    </script>
+    
+    <!-- Стили для HTMX индикатора загрузки -->
+    <style>
+        .htmx-indicator {
+            display: none;
+        }
+        .htmx-request .htmx-indicator {
+            display: block;
+        }
+    </style>
+</body>
+</html>
