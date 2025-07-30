@@ -11,7 +11,7 @@ def upload_to_supabase():
     )
     
     bucket = os.getenv("SUPABASE_STORAGE_BUCKET", "media")
-    upload_folder = "ваша_папка_с_файлами"  # Укажите свою папку
+    upload_folder = "media"  # Укажите свою папку
     
     for root, _, files in os.walk(upload_folder):
         for file in files:
