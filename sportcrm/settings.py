@@ -51,6 +51,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',  # Middleware для локализации
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -113,16 +114,29 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalization
+# Интернационализация
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ru'  # Русский язык по умолчанию
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Europe/Moscow'  # Московское время
 
-USE_I18N = True
+USE_I18N = True  # Включение интернационализации
 
-USE_TZ = True
+USE_L10N = True  # Включение локализации форматов
+
+USE_TZ = True  # Использование часовых поясов
+
+# Поддерживаемые языки
+LANGUAGES = [
+    ('ru', 'Russian'),
+    ('en', 'English'),
+]
+
+# Путь к файлам переводов
+LOCALE_PATHS = [
+    BASE_DIR / 'locale',
+]
 
 
 # Static files (CSS, JavaScript, Images)
