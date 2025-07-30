@@ -1,0 +1,88 @@
+/* Кастомные стили для спортивного приложения */
+
+/* Кнопки */
+.btn-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200;
+}
+
+.btn-secondary {
+    @apply bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200;
+}
+
+.btn-success {
+    @apply bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200;
+}
+
+.btn-danger {
+    @apply bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200;
+}
+
+/* Карточки */
+.card {
+    @apply bg-white shadow-lg rounded-lg p-6 border border-gray-200 hover:shadow-xl transition-shadow duration-200;
+}
+
+.card-header {
+    @apply border-b border-gray-200 pb-4 mb-4;
+}
+
+/* Формы */
+.input-field {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200;
+}
+
+.label-field {
+    @apply block text-sm font-medium text-gray-700 mb-2;
+}
+
+/* Навигация */
+.nav-link {
+    @apply px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200;
+}
+
+.nav-link-active {
+    @apply bg-blue-600 text-white;
+}
+
+.nav-link-inactive {
+    @apply text-gray-600 hover:text-gray-900 hover:bg-gray-100;
+}
+
+/* Таблицы */
+.table-container {
+    @apply overflow-x-auto shadow-md rounded-lg;
+}
+
+.table-header {
+    @apply bg-gray-50 border-b border-gray-200;
+}
+
+.table-cell {
+    @apply px-6 py-4 whitespace-nowrap text-sm;
+}
+
+/* Статусы */
+.status-active {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800;
+}
+
+.status-inactive {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800;
+}
+
+.status-pending {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800;
+}
+
+/* Спортивные элементы */
+.sport-card {
+    @apply bg-gradient-to-br from-blue-50 to-indigo-100 border-l-4 border-blue-500 p-4 rounded-r-lg;
+}
+
+.athlete-card {
+    @apply bg-white border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors duration-200;
+}
+
+.payment-card {
+    @apply bg-green-50 border border-green-200 rounded-lg p-4;
+}

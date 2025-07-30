@@ -1,16 +1,67 @@
+# Виртуальное окружение
 venv/
+env/
 
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Django
+*.log
+db.sqlite3
+db.sqlite3-journal
+/media/
+/static/
+!static/
+/staticfiles/
 
 # Конфиденциальные файлы
 .env
+.env.local
+.env.production
+.env.staging
+local_settings.py
 
-# IDE / Cursor / VSCode
+# IDE / Редакторы
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
-# Базы и прочее
-db.sqlite3
-*.log
+# Системные файлы
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Документы и временные файлы
+*.pdf
+*.xlsx
+*.docx
+!templates/**/*.pdf
+!static/**/*.pdf
+
+# Node.js локальная копия
+nodejs/
