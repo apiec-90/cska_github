@@ -48,10 +48,16 @@ def ping(request):
     return JsonResponse({'ping': 'pong'})
 
 urlpatterns = [
-    path('', views.home, name='home'),  # Главная страница
+    path('', include('core.urls')),  # Главная страница через core
     path('admin/', admin.site.urls),
     path('health/', health_check, name='health_check'),  # Полная проверка сервера
     path('ping/', ping, name='ping'),  # Простая проверка доступности
+    
+    # Приложения
+    path('groups/', include('groups.urls')),
+    path('athletes/', include('athletes.urls')),
+    path('attendance/', include('attendance.urls')),
+    path('payments/', include('payments.urls')),
 ]
 
 # Добавляем маршруты для статических файлов в режиме разработки

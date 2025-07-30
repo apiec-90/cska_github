@@ -1,0 +1,29 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Заголовок -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <div class="flex justify-between items-center">
+            <h1 class="text-3xl font-bold text-gray-900">{{ title }}</h1>
+            <a href="{% url 'payments:create' %}" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-colors">
+                <i class="fas fa-plus mr-2"></i>Добавить оплату
+            </a>
+        </div>
+    </div>
+
+    <!-- Список оплат -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <div class="text-center py-8">
+            <i class="fas fa-credit-card text-gray-400 text-6xl mb-4"></i>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">Оплаты пока не записаны</h3>
+            <p class="text-gray-500 mb-4">Запишите первую оплату для начала работы</p>
+            <a href="{% url 'payments:create' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
+                <i class="fas fa-plus mr-2"></i>Добавить оплату
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %} 
