@@ -44,7 +44,7 @@ INSTALLED_APPS = [
     # Third party apps
     'tailwind',
     'django_browser_reload',
-    'django_filters',
+    # 'django_filters',  # Временно отключен для тестирования миграций
     'storages',
 ]
 
