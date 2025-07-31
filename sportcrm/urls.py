@@ -1,23 +1,21 @@
 """
 Конфигурация URL для проекта SportCRM.
-
-Список `urlpatterns` направляет URL к представлениям. Для получения дополнительной информации см.:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
 """
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
-from django.conf.urls.i18n import i18n_patterns  # Для интернационализации URL
+from django.conf.urls.i18n import i18n_patterns
 
 # URL без префикса языка
 urlpatterns = [
-    path('i18n/', include('django.conf.urls.i18n')),  # Для переключения языков
+    path('i18n/', include('django.conf.urls.i18n')),
 ]
 
 # URL с префиксом языка
 urlpatterns += i18n_patterns(
+    path('', include('core.urls')),
     path('admin/', admin.site.urls),
-    prefix_default_language=False,  # Не добавлять префикс для языка по умолчанию
+    prefix_default_language=False,
 )
 
 if settings.DEBUG:

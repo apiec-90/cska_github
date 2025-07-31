@@ -1,27 +1,127 @@
-{% extends 'core/base.html' %}
+{% extends 'base.html' %}
 
 {% block title %}{{ title }}{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
-    <!-- Заголовок -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
-        <div class="flex justify-between items-center">
-            <h1 class="text-3xl font-bold text-gray-900">{{ title }}</h1>
-            <a href="{% url 'payments:create' %}" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-colors">
-                <i class="fas fa-plus mr-2"></i>Добавить оплату
-            </a>
+    <!-- Заголовок с статистикой -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">{{ title }}</h1>
+                    <p class="mt-1 text-sm text-gray-500">Управление платежами и финансовой отчетностью</p>
+                </div>
+                <a href="{% url 'payments:create' %}" 
+                   class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    Добавить платеж
+                </a>
+            </div>
+        </div>
+        
+        <!-- Статистика -->
+        <div class="px-6 py-4 bg-gray-50">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-white rounded-lg p-4 border border-gray-200">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-500">Общая сумма</p>
+                            <p class="text-2xl font-bold text-gray-900">₽0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg p-4 border border-gray-200">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-500">Всего платежей</p>
+                            <p class="text-2xl font-bold text-gray-900">0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg p-4 border border-gray-200">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-500">За этот месяц</p>
+                            <p class="text-2xl font-bold text-gray-900">₽0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg p-4 border border-gray-200">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-500">Средний платеж</p>
+                            <p class="text-2xl font-bold text-gray-900">₽0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Список оплат -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
-        <div class="text-center py-8">
-            <i class="fas fa-credit-card text-gray-400 text-6xl mb-4"></i>
-            <h3 class="text-lg font-medium text-gray-900 mb-2">Оплаты пока не записаны</h3>
-            <p class="text-gray-500 mb-4">Запишите первую оплату для начала работы</p>
-            <a href="{% url 'payments:create' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
-                <i class="fas fa-plus mr-2"></i>Добавить оплату
+    <!-- Список платежей -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-medium text-gray-900">Платежи</h2>
+                <div class="flex items-center space-x-3">
+                    <div class="relative">
+                        <input type="text" 
+                               placeholder="Поиск платежей..." 
+                               class="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <svg class="absolute left-3 top-2.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </div>
+                    <button class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Пустое состояние -->
+        <div class="text-center py-12">
+            <div class="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+                </svg>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">Платежи пока не записаны</h3>
+            <p class="text-gray-500 mb-6 max-w-sm mx-auto">Запишите первый платеж для начала работы с финансовой отчетностью. Вы сможете отслеживать доходы, создавать отчеты и управлять платежами спортсменов.</p>
+            <a href="{% url 'payments:create' %}" 
+               class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                Записать первый платеж
             </a>
         </div>
     </div>
