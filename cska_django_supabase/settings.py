@@ -197,6 +197,7 @@ JAZZMIN_SETTINGS = {
         "core.Document",
         "core.Payment",
     ],
+
 }
 
 JAZZMIN_UI_TWEAKS = {
@@ -208,10 +209,10 @@ JAZZMIN_UI_TWEAKS = {
     "accent": "accent-teal",
     "navbar": "navbar-dark",
     "no_navbar_border": False,
-    "navbar_fixed": False,
+    "navbar_fixed": True,
     "layout_boxed": False,
     "footer_fixed": False,
-    "sidebar_fixed": False,
+    "sidebar_fixed": True,
     "sidebar": "sidebar-dark-success",
     "sidebar_nav_small_text": False,
     "sidebar_disable_expand": False,

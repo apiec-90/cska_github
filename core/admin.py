@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
 from .models import (
-    PaymentMethod, Staff, Parent, Athlete, TrainingGroup, 
+    PaymentMethod, Staff, Parent, Athlete, Trainer, TrainingGroup, 
     AthleteTrainingGroup, AthleteParent, GroupSchedule, 
     TrainingSession, AttendanceRecord, DocumentType, 
     Document, Payment, AuditRecord
@@ -12,6 +12,11 @@ from .models import (
 admin.site.unregister(User)
 admin.site.register(User, UserAdmin)
 
+# Inline для связей спортсмен-родитель
+class AthleteParentInline(admin.TabularInline):
+    model = AthleteParent
+    extra = 1
+
 @admin.register(PaymentMethod)
 class PaymentMethodAdmin(admin.ModelAdmin):
     list_display = ('name', 'is_active')
@@ -19,13 +24,29 @@ class PaymentMethodAdmin(admin.ModelAdmin):
     search_fields = ('name',)
     ordering = ('name',)
 
+@admin.register(Trainer)
+class TrainerAdmin(admin.ModelAdmin):
+    list_display = ['user', 'specialization', 'experience_years', 'get_groups_count', 'get_athletes_count', 'is_archived']
+    list_filter = ['specialization', 'is_archived', 'experience_years']
+    search_fields = ['user__first_name', 'user__last_name', 'user__username', 'specialization']
+    
+    def get_groups_count(self, obj):
+        return obj.get_groups_count()
+    get_groups_count.short_description = 'Групп'
+    
+    def get_athletes_count(self, obj):
+        return obj.get_athletes_count()
+    get_athletes_count.short_description = 'Спортсменов'
+
 @admin.register(Staff)
 class StaffAdmin(admin.ModelAdmin):
-    list_display = ('user', 'phone', 'birth_date', 'is_archived')
-    list_filter = ('is_archived', 'birth_date')
-    search_fields = ('user__first_name', 'user__last_name', 'phone')
-    ordering = ('user__last_name', 'user__first_name')
-    raw_id_fields = ('user', 'archived_by')
+    list_display = ['user', 'get_role_display', 'phone', 'birth_date', 'is_archived']
+    list_filter = ['role', 'is_archived']
+    search_fields = ['user__first_name', 'user__last_name', 'user__username']
+    
+    def get_role_display(self, obj):
+        return obj.get_role_display()
+    get_role_display.short_description = 'Роль'
 
 @admin.register(Parent)
 class ParentAdmin(admin.ModelAdmin):
@@ -33,23 +54,29 @@ class ParentAdmin(admin.ModelAdmin):
     list_filter = ('is_archived',)
     search_fields = ('user__first_name', 'user__last_name')
     ordering = ('user__last_name', 'user__first_name')
-    raw_id_fields = ('user', 'archived_by')
 
 @admin.register(Athlete)
 class AthleteAdmin(admin.ModelAdmin):
-    list_display = ('user', 'birth_date', 'is_archived')
+    list_display = ('user', 'birth_date', 'get_parents_display', 'is_archived')
     list_filter = ('is_archived', 'birth_date')
     search_fields = ('user__first_name', 'user__last_name')
     ordering = ('user__last_name', 'user__first_name')
-    raw_id_fields = ('user', 'archived_by')
+    inlines = [AthleteParentInline]
+    
+    def get_parents_display(self, obj):
+        """Отображение родителей в списке"""
+        parents = obj.get_parents()
+        if parents:
+            return ", ".join([f"{parent.parent.user.first_name} {parent.parent.user.last_name}" for parent in parents])
+        return "Не указаны"
+    get_parents_display.short_description = "Родители"
 
 @admin.register(TrainingGroup)
 class TrainingGroupAdmin(admin.ModelAdmin):
-    list_display = ('name', 'age_min', 'age_max', 'staff', 'max_athletes', 'is_active', 'is_archived')
+    list_display = ('name', 'age_min', 'age_max', 'trainer', 'get_athletes_count', 'get_parents_count', 'is_active', 'is_archived')
     list_filter = ('is_active', 'is_archived', 'age_min', 'age_max')
-    search_fields = ('name',)
+    search_fields = ('name', 'trainer__user__first_name', 'trainer__user__last_name')
     ordering = ('name',)
-    raw_id_fields = ('staff', 'archived_by')
 
 @admin.register(AthleteTrainingGroup)
 class AthleteTrainingGroupAdmin(admin.ModelAdmin):
@@ -57,7 +84,6 @@ class AthleteTrainingGroupAdmin(admin.ModelAdmin):
     list_filter = ('training_group',)
     search_fields = ('athlete__user__first_name', 'athlete__user__last_name', 'training_group__name')
     ordering = ('athlete__user__last_name', 'training_group__name')
-    raw_id_fields = ('athlete', 'training_group')
 
 @admin.register(AthleteParent)
 class AthleteParentAdmin(admin.ModelAdmin):
@@ -65,7 +91,6 @@ class AthleteParentAdmin(admin.ModelAdmin):
     list_filter = ('parent',)
     search_fields = ('athlete__user__first_name', 'athlete__user__last_name', 'parent__user__first_name', 'parent__user__last_name')
     ordering = ('athlete__user__last_name', 'parent__user__last_name')
-    raw_id_fields = ('athlete', 'parent')
 
 @admin.register(GroupSchedule)
 class GroupScheduleAdmin(admin.ModelAdmin):
@@ -73,7 +98,6 @@ class GroupScheduleAdmin(admin.ModelAdmin):
     list_filter = ('training_group', 'weekday')
     search_fields = ('training_group__name',)
     ordering = ('training_group__name', 'weekday', 'start_time')
-    raw_id_fields = ('training_group',)
 
 @admin.register(TrainingSession)
 class TrainingSessionAdmin(admin.ModelAdmin):
@@ -81,7 +105,6 @@ class TrainingSessionAdmin(admin.ModelAdmin):
     list_filter = ('training_group', 'date', 'is_closed', 'is_canceled')
     search_fields = ('training_group__name',)
     ordering = ('-date', 'training_group__name')
-    raw_id_fields = ('training_group', 'canceled_by')
 
 @admin.register(AttendanceRecord)
 class AttendanceRecordAdmin(admin.ModelAdmin):
@@ -89,7 +112,6 @@ class AttendanceRecordAdmin(admin.ModelAdmin):
     list_filter = ('was_present', 'marked_at', 'session__training_group')
     search_fields = ('athlete__user__first_name', 'athlete__user__last_name', 'session__training_group__name')
     ordering = ('-marked_at', 'athlete__user__last_name')
-    raw_id_fields = ('athlete', 'session', 'marked_by')
 
 @admin.register(DocumentType)
 class DocumentTypeAdmin(admin.ModelAdmin):
@@ -103,7 +125,6 @@ class DocumentAdmin(admin.ModelAdmin):
     list_filter = ('document_type', 'content_type', 'is_private', 'is_archived', 'uploaded_at')
     search_fields = ('document_type__name', 'comment')
     ordering = ('-uploaded_at',)
-    raw_id_fields = ('document_type', 'content_type', 'uploaded_by', 'archived_by')
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
@@ -111,7 +132,6 @@ class PaymentAdmin(admin.ModelAdmin):
     list_filter = ('payment_method', 'is_paid', 'is_archived', 'is_automated', 'billing_period_start', 'billing_period_end')
     search_fields = ('athlete__user__first_name', 'athlete__user__last_name', 'payer__first_name', 'payer__last_name', 'invoice_number')
     ordering = ('-paid_at', 'athlete__user__last_name')
-    raw_id_fields = ('athlete', 'training_group', 'payer', 'payment_method', 'created_by', 'archived_by')
 
 @admin.register(AuditRecord)
 class AuditRecordAdmin(admin.ModelAdmin):
@@ -119,5 +139,4 @@ class AuditRecordAdmin(admin.ModelAdmin):
     list_filter = ('action', 'content_type', 'timestamp')
     search_fields = ('user__first_name', 'user__last_name', 'action', 'details')
     ordering = ('-timestamp',)
-    raw_id_fields = ('user', 'content_type')
     readonly_fields = ('timestamp',)

@@ -1,0 +1,37 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const roleField = document.getElementById('id_role');
+    const customRoleField = document.getElementById('id_custom_role');
+    const customRoleRow = customRoleField ? customRoleField.closest('.form-row') : null;
+    
+    function toggleCustomRole() {
+        if (!roleField || !customRoleRow) return;
+        
+        if (roleField.value === 'other') {
+            customRoleRow.style.display = 'block';
+            if (customRoleField) {
+                customRoleField.required = true;
+                customRoleField.disabled = false;
+            }
+        } else {
+            customRoleRow.style.display = 'none';
+            if (customRoleField) {
+                customRoleField.required = false;
+                customRoleField.value = '';
+                customRoleField.disabled = true;
+            }
+        }
+    }
+    
+    if (roleField) {
+        roleField.addEventListener('change', toggleCustomRole);
+        toggleCustomRole(); // Инициализация при загрузке
+    }
+});
+</script>
+{% endblock %}

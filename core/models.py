@@ -17,12 +17,57 @@ class PaymentMethod(models.Model):
     def __str__(self):
         return self.name
 
-class Staff(models.Model):
-    """Сотрудник (тренер)"""
+class Trainer(models.Model):
+    """Тренер"""
     id = models.BigAutoField(primary_key=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE, verbose_name="Пользователь")
+    specialization = models.CharField(max_length=100, blank=True, verbose_name="Специализация")
+    experience_years = models.IntegerField(default=0, verbose_name="Опыт работы (лет)")
+    certification = models.TextField(blank=True, verbose_name="Сертификация")
+    photo = models.TextField(default="", verbose_name="Фото")
+    phone = models.CharField(max_length=255, unique=True, verbose_name="Телефон")
+    birth_date = models.DateField(verbose_name="Дата рождения")
+    is_archived = models.BooleanField(default=False, verbose_name="Архивирован")
+    archived_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата архивирования")
+    archived_by = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Архивирован кем")
+
+    class Meta:
+        db_table = 'trainer'
+        verbose_name = "Тренер"
+        verbose_name_plural = "Тренеры"
+
+    def __str__(self):
+        return f"{self.user.first_name} {self.user.last_name} - {self.specialization}"
+    
+    def get_groups_count(self):
+        """Получить количество групп тренера"""
+        return self.traininggroup_set.count()
+    
+    def get_athletes_count(self):
+        """Получить количество спортсменов тренера"""
+        total = 0
+        for group in self.traininggroup_set.all():
+            total += group.athletetraininggroup_set.count()
+        return total
+
+class Staff(models.Model):
+    """Сотрудник (вспомогательные роли)"""
+    ROLE_CHOICES = [
+        ('admin', 'Администратор'),
+        ('accountant', 'Бухгалтер'),
+        ('cleaner', 'Уборщица'),
+        ('security', 'Охрана'),
+        ('doctor', 'Врач'),
+        ('psychologist', 'Психолог'),
+        ('manager', 'Менеджер'),
+        ('other', 'Другой'),
+    ]
+    
+    id = models.BigAutoField(primary_key=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, verbose_name="Пользователь")
+    role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='other', verbose_name="Роль")
     description = models.TextField(default="", verbose_name="Описание")
-    photo = models.TextField(default="", verbose_name="Фото")  # URL или путь к файлу
+    photo = models.TextField(default="", verbose_name="Фото")
     is_archived = models.BooleanField(default=False, verbose_name="Архивирован")
     archived_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата архивирования")
     archived_by = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Архивирован кем")
@@ -34,8 +79,12 @@ class Staff(models.Model):
         verbose_name = "Сотрудник"
         verbose_name_plural = "Сотрудники"
 
+    def get_role_display(self):
+        """Получить отображаемое название роли"""
+        return dict(self.ROLE_CHOICES).get(self.role, self.role)
+    
     def __str__(self):
-        return f"{self.user.first_name} {self.user.last_name}"
+        return f"{self.user.first_name} {self.user.last_name} ({self.get_role_display()})"
 
 class Parent(models.Model):
     """Родитель"""
@@ -71,6 +120,17 @@ class Athlete(models.Model):
 
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name}"
+    
+    def get_parents(self):
+        """Получить связанных родителей"""
+        return self.athleteparent_set.all()
+    
+    def get_parents_display(self):
+        """Получить отображение родителей для админки"""
+        parents = self.get_parents()
+        if parents:
+            return ", ".join([f"{parent.parent.user.first_name} {parent.parent.user.last_name}" for parent in parents])
+        return "Не указаны"
 
 class TrainingGroup(models.Model):
     """Тренировочная группа"""
@@ -78,7 +138,7 @@ class TrainingGroup(models.Model):
     name = models.CharField(max_length=255, unique=True, verbose_name="Название")
     age_min = models.IntegerField(verbose_name="Минимальный возраст")
     age_max = models.IntegerField(default=18, verbose_name="Максимальный возраст")
-    staff = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Тренер")
+    trainer = models.ForeignKey(Trainer, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Тренер")
     max_athletes = models.IntegerField(default=20, verbose_name="Максимум спортсменов")
     is_active = models.BooleanField(default=True, verbose_name="Активна")
     is_archived = models.BooleanField(default=False, verbose_name="Архивирована")
@@ -91,7 +151,20 @@ class TrainingGroup(models.Model):
         verbose_name_plural = "Тренировочные группы"
 
     def __str__(self):
-        return self.name
+        trainer_name = f" - {self.trainer}" if self.trainer else ""
+        return f"{self.name}{trainer_name}"
+    
+    def get_athletes_count(self):
+        """Получить количество спортсменов в группе"""
+        return self.athletetraininggroup_set.count()
+    
+    def get_parents_count(self):
+        """Получить количество родителей в группе"""
+        parents = set()
+        for athlete_group in self.athletetraininggroup_set.all():
+            for athlete_parent in athlete_group.athlete.athleteparent_set.all():
+                parents.add(athlete_parent.parent)
+        return len(parents)
 
 class AthleteTrainingGroup(models.Model):
     """Связь спортсмен-тренировочная группа"""
@@ -216,7 +289,7 @@ class Document(models.Model):
         verbose_name_plural = "Документы"
 
     def __str__(self):
-        return f"{self.document_type.name} - {self.content_object}"
+        return f"{self.document_type.name} - {self.comment}"
 
 class Payment(models.Model):
     """Платеж"""
@@ -244,7 +317,7 @@ class Payment(models.Model):
         verbose_name_plural = "Платежи"
 
     def __str__(self):
-        return f"{self.athlete} - {self.amount}"
+        return self.invoice_number  # Возвращаем номер счета
 
 class AuditRecord(models.Model):
     """Запись аудита"""
@@ -263,3 +336,5 @@ class AuditRecord(models.Model):
 
     def __str__(self):
         return f"{self.user} - {self.action} - {self.timestamp}"
+
+
