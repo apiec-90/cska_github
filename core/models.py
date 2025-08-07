@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
+from django.utils import timezone
 
 class PaymentMethod(models.Model):
     """Способ оплаты"""
@@ -337,4 +338,52 @@ class AuditRecord(models.Model):
     def __str__(self):
         return f"{self.user} - {self.action} - {self.timestamp}"
 
+
+class RegistrationDraft(models.Model):
+    """Черновик регистрации пользователя в 3 шага.
+
+    Создается на шаге 1 вместе с временным пользователем (user.is_active=False).
+    Хранит выбранную роль и текущий шаг. При удалении незавершенного черновика
+    автоматически удаляет временного пользователя.
+    """
+
+    ROLE_CHOICES = (
+        ("trainer", "Тренер"),
+        ("parent", "Родитель"),
+        ("athlete", "Спортсмен"),
+    )
+
+    id = models.BigAutoField(primary_key=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="registration_draft",
+                                verbose_name="Временный пользователь")
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name="created_registration_drafts",
+                                   verbose_name="Кем начато")
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, null=True, blank=True, verbose_name="Роль")
+    current_step = models.PositiveSmallIntegerField(default=1, verbose_name="Текущий шаг")
+    is_completed = models.BooleanField(default=False, verbose_name="Завершено")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создано")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Обновлено")
+
+    class Meta:
+        db_table = "registration_draft"
+        verbose_name = "Черновик регистрации"
+        verbose_name_plural = "Черновики регистрации"
+
+    def __str__(self) -> str:
+        return f"Draft #{self.pk} by {self.created_by} for {self.user} (step {self.current_step})"
+
+    def safe_dispose(self):
+        """Безопасно удалить черновик и связанного временного пользователя.
+        Используется при отмене/уходе со страницы и при входе на /register/.
+        """
+        temp_user = self.user
+        try:
+            super().delete()  # удалит запись черновика
+        finally:
+            # Удаляем временного пользователя, если он еще существует
+            try:
+                if temp_user and not temp_user.is_active:
+                    temp_user.delete()
+            except User.DoesNotExist:
+                pass
 

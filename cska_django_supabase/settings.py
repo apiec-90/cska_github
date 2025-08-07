@@ -51,6 +51,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'core.middleware.RegistrationDraftCleanupMiddleware',
 ]
 
 ROOT_URLCONF = 'cska_django_supabase.urls'
@@ -147,6 +148,7 @@ JAZZMIN_SETTINGS = {
     "user_avatar": None,
     "topmenu_links": [
         {"name": "Главная", "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"name": "📝 Регистрация", "url": "admin:register_step1", "permissions": ["auth.add_user"]},
         {"name": "Спортсмены", "url": "admin:core_athlete_changelist", "permissions": ["core.view_athlete"]},
         {"name": "Тренеры", "url": "admin:core_staff_changelist", "permissions": ["core.view_staff"]},
         {"name": "Группы", "url": "admin:core_traininggroup_changelist", "permissions": ["core.view_traininggroup"]},

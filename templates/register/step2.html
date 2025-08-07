@@ -1,0 +1,15 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Шаг 2 — Выбор роли</h2>
+  <form method="post">{% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn btn-primary" type="submit">Сохранить и продолжить →</button>
+    <a class="btn btn-outline-secondary" href="{% url 'cancel_registration' %}">Отменить</a>
+  </form>
+  <hr>
+  <p class="text-muted">Черновик: #{{ draft.id }}, пользователь: {{ draft.user.username }}</p>
+</div>
+{% endblock %}
+
+

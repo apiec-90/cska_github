@@ -1,0 +1,15 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Шаг 3 — Данные роли</h2>
+  <form method="post">{% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn btn-success" type="submit">Завершить регистрацию</button>
+    <a class="btn btn-outline-secondary" href="{% url 'cancel_registration' %}">Отменить</a>
+  </form>
+  <hr>
+  <p class="text-muted">Роль: {{ draft.role }}, черновик #{{ draft.id }}</p>
+</div>
+{% endblock %}
+
+
