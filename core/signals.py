@@ -1,7 +1,7 @@
 from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
 from django.contrib.auth.models import User
-from django.utils import timezone
+from django.contrib.contenttypes.models import ContentType
 from .models import Staff, Parent, Athlete, TrainingGroup, Document, AuditRecord
 
 @receiver(post_save, sender=Staff)
@@ -47,7 +47,6 @@ def sync_athlete_archive(sender, instance, **kwargs):
 def log_document_upload(sender, instance, created, **kwargs):
     """Логирование загрузки документа"""
     if created:
-        from django.contrib.contenttypes.models import ContentType
         # Создаем запись аудита
         AuditRecord.objects.create(
             user=instance.uploaded_by,
@@ -67,7 +66,6 @@ def log_staff_changes(sender, instance, **kwargs):
                 old_instance.birth_date != instance.birth_date or
                 old_instance.is_archived != instance.is_archived):
                 
-                from django.contrib.contenttypes.models import ContentType
                 AuditRecord.objects.create(
                     user=instance.user,
                     action='update_staff',
@@ -87,7 +85,6 @@ def log_athlete_changes(sender, instance, **kwargs):
             if (old_instance.birth_date != instance.birth_date or
                 old_instance.is_archived != instance.is_archived):
                 
-                from django.contrib.contenttypes.models import ContentType
                 AuditRecord.objects.create(
                     user=instance.user,
                     action='update_athlete',
@@ -109,7 +106,6 @@ def log_training_group_changes(sender, instance, **kwargs):
                 old_instance.age_max != instance.age_max or
                 old_instance.is_archived != instance.is_archived):
                 
-                from django.contrib.contenttypes.models import ContentType
                 AuditRecord.objects.create(
                     user=instance.staff.user if instance.staff else None,
                     action='update_training_group',

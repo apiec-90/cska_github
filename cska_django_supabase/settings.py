@@ -26,7 +26,8 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-key-change-in-product
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# Настройки для localhost
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 
 # Application definition
@@ -39,7 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'core',  # Добавляем приложение core
+    'core',  # Основное приложение с моделями
 ]
 
 MIDDLEWARE = [
@@ -119,9 +120,6 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',
-]
 
 # Media files
 MEDIA_URL = '/media/'
@@ -136,9 +134,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/admin/login/'
 LOGIN_REDIRECT_URL = '/admin/'
 LOGOUT_REDIRECT_URL = '/admin/login/'
-
-# Настройки для localhost
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 # Настройки Jazzmin
 JAZZMIN_SETTINGS = {
