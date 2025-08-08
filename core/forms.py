@@ -27,7 +27,7 @@ class Step2RoleForm(forms.Form):
 class TrainerForm(forms.ModelForm):
     class Meta:
         model = Trainer
-        fields = ("specialization", "experience_years", "certification", "phone", "birth_date")
+        fields = ("last_name", "first_name", "specialization", "experience_years", "certification", "phone", "birth_date")
         widgets = {
             'birth_date': forms.DateInput(attrs={'type': 'date'}),
             'phone': forms.TextInput(attrs={'placeholder': '+7 (999) 123-45-67'}),
@@ -37,13 +37,13 @@ class TrainerForm(forms.ModelForm):
 class ParentForm(forms.ModelForm):
     class Meta:
         model = Parent
-        fields = ("phone",)
+        fields = ("phone", "birth_date")
 
 
 class AthleteForm(forms.ModelForm):
     class Meta:
         model = Athlete
-        fields = ("birth_date", "phone")
+        fields = ("last_name", "first_name", "birth_date", "phone")
         widgets = {
             'birth_date': forms.DateInput(attrs={'type': 'date'}),
         }
@@ -63,11 +63,10 @@ class Step3StaffRoleForm(forms.Form):
 class StaffForm(forms.ModelForm):
     class Meta:
         model = Staff
-        fields = ("role", "description", "phone", "birth_date")
+        fields = ("role", "last_name", "first_name", "phone", "birth_date")
         widgets = {
             'birth_date': forms.DateInput(attrs={'type': 'date'}),
             'phone': forms.TextInput(attrs={'placeholder': '+7 (999) 123-45-67'}),
-            'description': forms.Textarea(attrs={'rows': 3}),
         }
 
 
@@ -112,4 +111,35 @@ class TrainerRelationsForm(forms.Form):
         required=False,
         widget=forms.SelectMultiple
     )
+
+
+class AthleteAdminForm(forms.ModelForm):
+    # Поля User для редактирования в форме спортсмена
+    user_last_name = forms.CharField(label="Фамилия", max_length=150, required=False)
+    user_first_name = forms.CharField(label="Имя", max_length=150, required=False)
+
+    class Meta:
+        model = Athlete
+        fields = ("user_last_name", "user_first_name", "birth_date", "phone")
+        widgets = {
+            'birth_date': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Инициализируем из связанного пользователя
+        if self.instance and getattr(self.instance, 'user_id', None):
+            self.fields['user_last_name'].initial = self.instance.user.last_name
+            self.fields['user_first_name'].initial = self.instance.user.first_name
+
+    def save(self, commit=True):
+        athlete = super().save(commit=False)
+        # Сохраняем ФИО в связанного пользователя
+        if athlete.user_id:
+            athlete.user.last_name = self.cleaned_data.get('user_last_name', '')
+            athlete.user.first_name = self.cleaned_data.get('user_first_name', '')
+            athlete.user.save(update_fields=['last_name', 'first_name'])
+        if commit:
+            athlete.save()
+        return athlete
 

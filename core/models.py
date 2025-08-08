@@ -25,9 +25,11 @@ class Trainer(models.Model):
     specialization = models.CharField(max_length=100, blank=True, verbose_name="Специализация")
     experience_years = models.IntegerField(default=0, verbose_name="Опыт работы (лет)")
     certification = models.TextField(blank=True, verbose_name="Сертификация")
-    photo = models.TextField(default="", verbose_name="Фото")
     phone = models.CharField(max_length=255, unique=True, verbose_name="Телефон")
     birth_date = models.DateField(verbose_name="Дата рождения")
+    # Новые поля ФИО на профиль тренера
+    first_name = models.CharField(max_length=150, null=True, blank=True, verbose_name="Имя")
+    last_name = models.CharField(max_length=150, null=True, blank=True, verbose_name="Фамилия")
     is_archived = models.BooleanField(default=False, verbose_name="Архивирован")
     archived_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата архивирования")
     archived_by = models.ForeignKey('Staff', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Архивирован кем")
@@ -38,9 +40,9 @@ class Trainer(models.Model):
         verbose_name_plural = "Тренеры"
 
     def __str__(self):
-        # # Фолбэк на username, если ФИО не заполнено
-        first_name = self.user.first_name or self.user.username
-        last_name = self.user.last_name or ""
+        # # Фолбэк на профильные ФИО, затем на user.username
+        first_name = (self.first_name or self.user.first_name or self.user.username)
+        last_name = (self.last_name or self.user.last_name or "")
         spec = f" - {self.specialization}" if self.specialization else ""
         return f"{first_name} {last_name}{spec}".strip()
     
@@ -71,13 +73,14 @@ class Staff(models.Model):
     id = models.BigAutoField(primary_key=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE, verbose_name="Пользователь")
     role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='other', verbose_name="Роль")
-    description = models.TextField(default="", verbose_name="Описание")
-    photo = models.TextField(default="", verbose_name="Фото")
     is_archived = models.BooleanField(default=False, verbose_name="Архивирован")
     archived_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата архивирования")
     archived_by = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Архивирован кем")
     phone = models.CharField(max_length=255, unique=True, verbose_name="Телефон")
     birth_date = models.DateField(verbose_name="Дата рождения")
+    # Новые поля ФИО на профиль сотрудника
+    first_name = models.CharField(max_length=150, null=True, blank=True, verbose_name="Имя")
+    last_name = models.CharField(max_length=150, null=True, blank=True, verbose_name="Фамилия")
 
     class Meta:
         db_table = 'staff'
@@ -89,14 +92,16 @@ class Staff(models.Model):
         return dict(self.ROLE_CHOICES).get(self.role, self.role)
     
     def __str__(self):
-        return f"{self.user.first_name} {self.user.last_name} ({self.get_role_display()})"
+        first_name = (self.first_name or self.user.first_name or self.user.username)
+        last_name = (self.last_name or self.user.last_name or "")
+        return f"{last_name} {first_name} ({self.get_role_display()})".strip()
 
 class Parent(models.Model):
     """Родитель"""
     id = models.BigAutoField(primary_key=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE, verbose_name="Пользователь")
-    photo = models.TextField(default="", verbose_name="Фото")  # URL или путь к файлу
-    phone = models.CharField(max_length=255, default="", blank=True, verbose_name="Телефон")
+    phone = models.CharField(max_length=255, null=True, blank=True, unique=True, default=None, verbose_name="Телефон")
+    birth_date = models.DateField(null=True, blank=True, verbose_name="Дата рождения")
     is_archived = models.BooleanField(default=False, verbose_name="Архивирован")
     archived_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата архивирования")
     archived_by = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Архивирован кем")
@@ -107,7 +112,7 @@ class Parent(models.Model):
         verbose_name_plural = "Родители"
 
     def __str__(self):
-        return f"{self.user.first_name} {self.user.last_name}"
+        return f"{self.user.last_name} {self.user.first_name}".strip()
     
     def get_children_relations(self):
         """Связи Parent↔Athlete (AthleteParent) с предзагрузкой пользователя ребёнка"""
@@ -128,11 +133,13 @@ class Athlete(models.Model):
     id = models.BigAutoField(primary_key=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE, verbose_name="Пользователь")
     birth_date = models.DateField(verbose_name="Дата рождения")
-    phone = models.CharField(max_length=255, default="", blank=True, verbose_name="Телефон")
-    photo = models.TextField(default="", verbose_name="Фото")  # URL или путь к файлу
+    phone = models.CharField(max_length=255, null=True, blank=True, unique=True, default=None, verbose_name="Телефон")
     is_archived = models.BooleanField(default=False, verbose_name="Архивирован")
     archived_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата архивирования")
     archived_by = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Архивирован кем")
+    # Новые поля ФИО на профиль спортсмена
+    first_name = models.CharField(max_length=150, null=True, blank=True, verbose_name="Имя")
+    last_name = models.CharField(max_length=150, null=True, blank=True, verbose_name="Фамилия")
 
     class Meta:
         db_table = 'athlete'
@@ -140,7 +147,9 @@ class Athlete(models.Model):
         verbose_name_plural = "Спортсмены"
 
     def __str__(self):
-        return f"{self.user.first_name} {self.user.last_name}"
+        first_name = (self.first_name or self.user.first_name or self.user.username)
+        last_name = (self.last_name or self.user.last_name or "")
+        return f"{last_name} {first_name}".strip()
     
     def get_parents(self):
         """Получить связанных родителей"""

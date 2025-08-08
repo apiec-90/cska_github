@@ -36,7 +36,7 @@ from .forms import (
     ParentProfileForm,
     AthleteRelationsForm,
     ParentRelationsForm,
-    TrainerRelationsForm,
+    TrainerRelationsForm
 )
 
 # Регистрируем стандартные Django модели
@@ -66,8 +66,8 @@ class TrainerAdmin(admin.ModelAdmin):
 
     def get_full_name(self, obj):
         """Полное имя тренера"""
-        first_name = obj.user.first_name or ""
-        last_name = obj.user.last_name or ""
+        first_name = (getattr(obj, 'first_name', None) or obj.user.first_name or "")
+        last_name = (getattr(obj, 'last_name', None) or obj.user.last_name or "")
         return f"{last_name} {first_name}".strip() or obj.user.username
     get_full_name.short_description = "ФИО"
     
@@ -115,8 +115,8 @@ class StaffAdmin(admin.ModelAdmin):
     
     def get_full_name(self, obj):
         """Полное имя сотрудника"""
-        first_name = obj.user.first_name or ""
-        last_name = obj.user.last_name or ""
+        first_name = (getattr(obj, 'first_name', None) or obj.user.first_name or "")
+        last_name = (getattr(obj, 'last_name', None) or obj.user.last_name or "")
         return f"{last_name} {first_name}".strip() or obj.user.username
     get_full_name.short_description = "ФИО"
     
@@ -155,8 +155,8 @@ class ParentAdmin(admin.ModelAdmin):
     
     def get_full_name(self, obj):
         """Полное имя родителя"""
-        first_name = obj.user.first_name or ""
-        last_name = obj.user.last_name or ""
+        first_name = (getattr(obj, 'first_name', None) or obj.user.first_name or "")
+        last_name = (getattr(obj, 'last_name', None) or obj.user.last_name or "")
         return f"{last_name} {first_name}".strip() or obj.user.username
     get_full_name.short_description = "ФИО"
     
@@ -234,12 +234,21 @@ class AthleteAdmin(admin.ModelAdmin):
         extra_context = extra_context or {}
         documents = []
         doc_types = DocumentType.objects.all().order_by('name')
+        avatar_url = None
         if object_id:
             try:
                 athlete = Athlete.objects.get(pk=object_id)
                 from django.contrib.contenttypes.models import ContentType
                 ct = ContentType.objects.get_for_model(Athlete)
                 documents = Document.objects.filter(content_type=ct, object_id=athlete.id).order_by('-uploaded_at')
+                # пробуем найти актуальный аватар из документов
+                try:
+                    avatar_type = DocumentType.objects.get(name='Аватар')
+                    avatar_doc = documents.filter(document_type=avatar_type).first()
+                    if avatar_doc:
+                        avatar_url = avatar_doc.file
+                except DocumentType.DoesNotExist:
+                    pass
                 
                 # # предзагружаем связанные данные для красивого отображения
                 athlete_groups = athlete.athletetraininggroup_set.select_related(
@@ -259,6 +268,7 @@ class AthleteAdmin(admin.ModelAdmin):
             'athlete_document_types': doc_types,
             'athlete_groups': athlete_groups if 'athlete_groups' in locals() else [],
             'athlete_parents': athlete_parents if 'athlete_parents' in locals() else [],
+            'athlete_avatar_url': avatar_url,
         })
         return super().changeform_view(request, object_id, form_url, extra_context)
 
@@ -276,6 +286,46 @@ class AthleteAdmin(admin.ModelAdmin):
             messages.error(request, 'Спортсмен не найден')
             return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
 
+        # Удаляем предыдущий файл аватара (если был) и документы типа "Аватар"
+        try:
+            if athlete.photo:
+                prev_url = str(athlete.photo)
+                media_root = getattr(settings, 'MEDIA_ROOT', 'media')
+                media_url = getattr(settings, 'MEDIA_URL', '/media/')
+                if prev_url.startswith(media_url):
+                    rel_prev = prev_url[len(media_url):]
+                elif '/media/' in prev_url:
+                    rel_prev = prev_url.split('/media/', 1)[1]
+                else:
+                    rel_prev = prev_url.lstrip('/')
+                prev_path = os.path.join(media_root, rel_prev)
+                if os.path.exists(prev_path):
+                    os.remove(prev_path)
+            # Удаляем старые документы-аватары
+            from django.contrib.contenttypes.models import ContentType
+            avatar_type, _ = DocumentType.objects.get_or_create(name='Аватар')
+            ct_athlete = ContentType.objects.get_for_model(Athlete)
+            old_docs = Document.objects.filter(document_type=avatar_type, content_type=ct_athlete, object_id=athlete.id)
+            for d in old_docs:
+                try:
+                    file_url = str(d.file)
+                    media_root = getattr(settings, 'MEDIA_ROOT', 'media')
+                    media_url = getattr(settings, 'MEDIA_URL', '/media/')
+                    if file_url.startswith(media_url):
+                        rel = file_url[len(media_url):]
+                    elif '/media/' in file_url:
+                        rel = file_url.split('/media/', 1)[1]
+                    else:
+                        rel = file_url.lstrip('/')
+                    file_path = os.path.join(media_root, rel)
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                except Exception:
+                    pass
+            old_docs.delete()
+        except Exception:
+            pass
+
         ext = os.path.splitext(file_obj.name)[1].lower() or '.bin'
         filename = f"{uuid.uuid4().hex}{ext}"
         folder = os.path.join(getattr(settings, 'MEDIA_ROOT', 'media'), 'avatars')
@@ -286,9 +336,7 @@ class AthleteAdmin(admin.ModelAdmin):
                 out.write(chunk)
         url = f"{getattr(settings, 'MEDIA_URL', '/media/') }avatars/{filename}"
 
-        # сохраняем в профиль
-        athlete.photo = url
-        athlete.save(update_fields=['photo'])
+        # фото в профиль не пишем — только документ и предпросмотр из документов
 
         # создаем запись документа
         from django.contrib.contenttypes.models import ContentType
@@ -410,8 +458,8 @@ class AthleteAdmin(admin.ModelAdmin):
     
     def get_full_name(self, obj):
         """Полное имя спортсмена"""
-        first_name = obj.user.first_name or ""
-        last_name = obj.user.last_name or ""
+        first_name = (getattr(obj, 'first_name', None) or obj.user.first_name or "")
+        last_name = (getattr(obj, 'last_name', None) or obj.user.last_name or "")
         return f"{last_name} {first_name}".strip() or obj.user.username
     get_full_name.short_description = "ФИО"
     

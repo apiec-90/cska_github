@@ -1,5 +1,10 @@
 {% extends "admin/change_form.html" %}
 {% block content %}
+<style>
+/* # Поднимаем модалку над оверлеем Jazzmin/Bootstrap */
+.modal { z-index: 2050 !important; }
+.modal-backdrop { z-index: 2000 !important; }
+</style>
 <div class="card w-100">
   <div class="card-body">
     <div class="row">
@@ -8,8 +13,8 @@
         <div class="text-center">
           <!-- Вертикальный прямоугольник для аватара -->
           <div class="position-relative mb-3" style="width:200px;height:250px;margin:0 auto;border:2px dashed #dee2e6;border-radius:8px;overflow:hidden;cursor:pointer;" onclick="document.getElementById('avatar-upload').click();">
-            {% if original.photo %}
-              <img src="{{ original.photo }}" alt="avatar" style="width:100%;height:100%;object-fit:cover;"/>
+            {% if athlete_avatar_url %}
+              <img src="{{ athlete_avatar_url }}" alt="avatar" style="width:100%;height:100%;object-fit:cover;"/>
             {% else %}
               <div class="d-flex align-items-center justify-content-center h-100" style="background:#f8f9fa;">
                 <div class="text-center">
@@ -27,11 +32,11 @@
           
           <!-- Данные спортсмена -->
           <h5 class="mb-2">
-            {{ original.user.last_name }} {{ original.user.first_name }}{% if not original.user.first_name and not original.user.last_name %}{{ original.user.username }}{% endif %}
+            <span id="preview_name">{{ original.last_name|default:original.user.last_name }} {{ original.first_name|default:original.user.first_name }}{% if not original.first_name and not original.last_name and not original.user.first_name and not original.user.last_name %}{{ original.user.username }}{% endif %}</span>
           </h5>
           <div class="text-muted mb-2">
-            <div><strong>Телефон:</strong> {{ original.phone|default:"—" }}</div>
-            <div><strong>Дата рождения:</strong> {{ original.birth_date|date:"d.m.Y"|default:"—" }}</div>
+            <div><strong>Телефон:</strong> <span id="preview_phone">{{ original.phone|default:"—" }}</span></div>
+            <div><strong>Дата рождения:</strong> <span id="preview_birth">{{ original.birth_date|date:"d.m.Y"|default:"—" }}</span></div>
           </div>
           <span class="badge {% if original.user.is_active %}badge-success{% else %}badge-secondary{% endif %}">
             {% if original.user.is_active %}Активен{% else %}Неактивен{% endif %}
@@ -123,7 +128,7 @@
           <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-3">
               <h6 class="mb-0"><strong>Документы</strong></h6>
-              <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addDocumentModal">
+              <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addDocumentModal" data-toggle="modal" data-target="#addDocumentModal">
                 <i class="fas fa-plus"></i> Добавить документ
               </button>
             </div>
@@ -175,12 +180,12 @@
 </div>
 
 <!-- Модальное окно для добавления документа -->
-<div class="modal fade" id="addDocumentModal" tabindex="-1">
+<div class="modal fade" id="addDocumentModal" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">Добавить документ</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <button type="button" class="close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
       </div>
       <form action="{% url 'admin:core_athlete_upload_document' original.pk %}" method="post" enctype="multipart/form-data">
         {% csrf_token %}
@@ -205,7 +210,7 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-secondary" data-dismiss="modal" data-bs-dismiss="modal">Отмена</button>
           <button type="submit" class="btn btn-primary">Загрузить</button>
         </div>
       </form>
@@ -234,7 +239,49 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   });
+
+  // Переносим модалку в <body>, чтобы избежать проблем со stacking context
+  try {
+    var modal = document.getElementById('addDocumentModal');
+    if (modal && modal.parentElement !== document.body) {
+      document.body.appendChild(modal);
+    }
+  } catch (e) {}
 });
+</script>
+
+<script>
+// Живое обновление превью из стандартной формы
+(function() {
+  function qs(sel){return document.querySelector(sel)}
+  function qsv(sel){var el=qs(sel);return el?el.value.trim():""}
+  function setText(id, text){var el=document.getElementById(id);if(el){el.textContent=text||"—"}}
+  function formatDateYmdToDmY(ymd){ if(!ymd) return "—"; var p=ymd.split('-'); if(p.length!==3) return ymd; return p[2]+'.'+p[1]+'.'+p[0]; }
+
+  function updatePreview(){
+    // В стандартной форме Django поля User лежат в связанных полях; пытаемся найти их по name
+    var first = qsv('input[name="user__first_name"], input[name="first_name"], input[name="user-first_name"], #id_first_name');
+    var last = qsv('input[name="user__last_name"], input[name="last_name"], input[name="user-last_name"], #id_last_name');
+    var phone = qsv('input[name="phone"], #id_phone');
+    var birth = qsv('input[name="birth_date"], #id_birth_date');
+
+    setText('preview_name', (last+" "+first).trim());
+    setText('preview_phone', phone || '—');
+    setText('preview_birth', formatDateYmdToDmY(birth));
+  }
+
+  document.addEventListener('input', function(e){
+    if (e.target && (e.target.name||'').match(/first_name|last_name|phone|birth_date|user__first_name|user__last_name/)) {
+      updatePreview();
+    }
+  });
+  document.addEventListener('change', function(e){
+    if (e.target && (e.target.name||'').match(/birth_date/)) {
+      updatePreview();
+    }
+  });
+  document.addEventListener('DOMContentLoaded', updatePreview);
+})();
 </script>
 
 {{ block.super }}
