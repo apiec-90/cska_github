@@ -32,7 +32,7 @@
           
           <!-- Данные спортсмена -->
           <h5 class="mb-2">
-            <span id="preview_name">{{ original.last_name|default:original.user.last_name }} {{ original.first_name|default:original.user.first_name }}{% if not original.first_name and not original.last_name and not original.user.first_name and not original.user.last_name %}{{ original.user.username }}{% endif %}</span>
+            <span id="preview_name">{% if original.first_name or original.last_name %}{{ original.last_name|default:"" }} {{ original.first_name|default:"" }}{% elif original.user.first_name or original.user.last_name %}{{ original.user.last_name|default:"" }} {{ original.user.first_name|default:"" }}{% else %}{{ original.user.username }}{% endif %}</span>
           </h5>
           <div class="text-muted mb-2">
             <div><strong>Телефон:</strong> <span id="preview_phone">{{ original.phone|default:"—" }}</span></div>
@@ -259,9 +259,9 @@ document.addEventListener('DOMContentLoaded', function() {
   function formatDateYmdToDmY(ymd){ if(!ymd) return "—"; var p=ymd.split('-'); if(p.length!==3) return ymd; return p[2]+'.'+p[1]+'.'+p[0]; }
 
   function updatePreview(){
-    // В стандартной форме Django поля User лежат в связанных полях; пытаемся найти их по name
-    var first = qsv('input[name="user__first_name"], input[name="first_name"], input[name="user-first_name"], #id_first_name');
-    var last = qsv('input[name="user__last_name"], input[name="last_name"], input[name="user-last_name"], #id_last_name');
+    // Ищем поля ФИО в модели Athlete (приоритет) или User
+    var first = qsv('input[name="first_name"], input[name="user__first_name"], input[name="user-first_name"], #id_first_name');
+    var last = qsv('input[name="last_name"], input[name="user__last_name"], input[name="user-last_name"], #id_last_name');
     var phone = qsv('input[name="phone"], #id_phone');
     var birth = qsv('input[name="birth_date"], #id_birth_date');
 
@@ -271,7 +271,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   document.addEventListener('input', function(e){
-    if (e.target && (e.target.name||'').match(/first_name|last_name|phone|birth_date|user__first_name|user__last_name/)) {
+    if (e.target && (e.target.name||'').match(/first_name|last_name|phone|birth_date/)) {
       updatePreview();
     }
   });

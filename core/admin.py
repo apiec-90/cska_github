@@ -62,8 +62,21 @@ class TrainerAdmin(admin.ModelAdmin):
     list_filter = ['is_archived', 'user__is_active']
     search_fields = ['user__first_name', 'user__last_name', 'user__username', 'phone']
     ordering = ['user__last_name', 'user__first_name']
-    # # убираем кастомный шаблон — оставляем стандартный вид
-    # change_form_template = 'admin/core/trainer/change_form.html'
+    
+    # Настройка полей для формы
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('first_name', 'last_name', 'phone', 'birth_date')
+        }),
+        ('Архивирование', {
+            'fields': ('is_archived', 'archived_at', 'archived_by'),
+            'classes': ('collapse',),
+            'description': 'Настройки архивирования записи'
+        }),
+    )
+    
+    # Убираем поле user из формы
+    exclude = ('user',)
 
     def get_full_name(self, obj):
         """Полное имя тренера"""
@@ -104,6 +117,28 @@ class TrainerAdmin(admin.ModelAdmin):
             'traininggroup_set'
         )
         return qs
+    
+    def get_form(self, request, obj=None, **kwargs):
+        """Инициализируем форму данными из User если поля пустые"""
+        form = super().get_form(request, obj, **kwargs)
+        if obj and obj.user:
+            # Если поля first_name или last_name пустые, заполняем из User
+            if not obj.first_name and obj.user.first_name:
+                form.base_fields['first_name'].initial = obj.user.first_name
+            if not obj.last_name and obj.user.last_name:
+                form.base_fields['last_name'].initial = obj.user.last_name
+        return form
+    
+    def save_model(self, request, obj, form, change):
+        """Синхронизируем ФИО из Trainer в User"""
+        super().save_model(request, obj, form, change)
+        
+        # Синхронизируем ФИО с User
+        if obj.user:
+            user = obj.user
+            user.first_name = obj.first_name
+            user.last_name = obj.last_name
+            user.save(update_fields=['first_name', 'last_name'])
 
 @admin.register(Staff)
 class StaffAdmin(admin.ModelAdmin):
@@ -111,8 +146,21 @@ class StaffAdmin(admin.ModelAdmin):
     list_filter = ['role', 'is_archived', 'user__is_active']
     search_fields = ['user__first_name', 'user__last_name', 'user__username', 'phone']
     ordering = ['user__last_name', 'user__first_name']
-    # # используем стандартную форму
-    # change_form_template = 'admin/core/staff/change_form.html'
+    
+    # Настройка полей для формы
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('first_name', 'last_name', 'phone', 'birth_date', 'role')
+        }),
+        ('Архивирование', {
+            'fields': ('is_archived', 'archived_at', 'archived_by'),
+            'classes': ('collapse',),
+            'description': 'Настройки архивирования записи'
+        }),
+    )
+    
+    # Убираем поле user из формы
+    exclude = ('user',)
     
     def get_full_name(self, obj):
         """Полное имя сотрудника"""
@@ -144,6 +192,28 @@ class StaffAdmin(admin.ModelAdmin):
         qs = super().get_queryset(request)
         qs = qs.select_related('user')
         return qs
+    
+    def get_form(self, request, obj=None, **kwargs):
+        """Инициализируем форму данными из User если поля пустые"""
+        form = super().get_form(request, obj, **kwargs)
+        if obj and obj.user:
+            # Если поля first_name или last_name пустые, заполняем из User
+            if not obj.first_name and obj.user.first_name:
+                form.base_fields['first_name'].initial = obj.user.first_name
+            if not obj.last_name and obj.user.last_name:
+                form.base_fields['last_name'].initial = obj.user.last_name
+        return form
+    
+    def save_model(self, request, obj, form, change):
+        """Синхронизируем ФИО из Staff в User"""
+        super().save_model(request, obj, form, change)
+        
+        # Синхронизируем ФИО с User
+        if obj.user:
+            user = obj.user
+            user.first_name = obj.first_name
+            user.last_name = obj.last_name
+            user.save(update_fields=['first_name', 'last_name'])
 
 @admin.register(Parent)
 class ParentAdmin(admin.ModelAdmin):
@@ -151,13 +221,26 @@ class ParentAdmin(admin.ModelAdmin):
     list_filter = ('is_archived', 'user__is_active')
     search_fields = ('user__first_name', 'user__last_name', 'phone')
     ordering = ('user__last_name', 'user__first_name')
-    # # убираем кастомный шаблон — оставляем стандартный вид
-    # change_form_template = 'admin/core/parent/change_form.html'
+    
+    # Настройка полей для формы
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('first_name', 'last_name', 'phone', 'birth_date')
+        }),
+        ('Архивирование', {
+            'fields': ('is_archived', 'archived_at', 'archived_by'),
+            'classes': ('collapse',),
+            'description': 'Настройки архивирования записи'
+        }),
+    )
+    
+    # Убираем поле user из формы
+    exclude = ('user',)
     
     def get_full_name(self, obj):
         """Полное имя родителя"""
-        first_name = (getattr(obj, 'first_name', None) or obj.user.first_name or "")
-        last_name = (getattr(obj, 'last_name', None) or obj.user.last_name or "")
+        first_name = (obj.first_name or obj.user.first_name or "")
+        last_name = (obj.last_name or obj.user.last_name or "")
         return f"{last_name} {first_name}".strip() or obj.user.username
     get_full_name.short_description = "ФИО"
     
@@ -196,6 +279,41 @@ class ParentAdmin(admin.ModelAdmin):
             'athleteparent_set__athlete__user'
         )
         return qs
+    
+    def get_form(self, request, obj=None, **kwargs):
+        """Инициализируем форму данными из User если поля пустые"""
+        form = super().get_form(request, obj, **kwargs)
+        if obj and obj.user:
+            # Если поля first_name или last_name пустые, заполняем из User
+            if not obj.first_name and obj.user.first_name:
+                form.base_fields['first_name'].initial = obj.user.first_name
+            if not obj.last_name and obj.user.last_name:
+                form.base_fields['last_name'].initial = obj.user.last_name
+        elif not obj:  # При создании новой записи
+            # Если есть user_id в GET параметрах, инициализируем из User
+            user_id = request.GET.get('user_id')
+            if user_id:
+                try:
+                    from django.contrib.auth.models import User
+                    user = User.objects.get(id=user_id)
+                    form.base_fields['first_name'].initial = user.first_name
+                    form.base_fields['last_name'].initial = user.last_name
+                except User.DoesNotExist:
+                    pass
+        return form
+    
+    def save_model(self, request, obj, form, change):
+        """Синхронизируем ФИО между Parent и User"""
+        super().save_model(request, obj, form, change)
+        
+        # Синхронизируем ФИО с User
+        if obj.user:
+            user = obj.user
+            user.first_name = obj.first_name
+            user.last_name = obj.last_name
+            user.save(update_fields=['first_name', 'last_name'])
+    
+
 
 @admin.register(Athlete)
 class AthleteAdmin(admin.ModelAdmin):
@@ -207,6 +325,41 @@ class AthleteAdmin(admin.ModelAdmin):
     inlines = []
     # # кастомный шаблон карточки спортсмена
     change_form_template = 'admin/core/athlete/change_form.html'
+    
+    # Настройка полей для формы
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('first_name', 'last_name', 'birth_date', 'phone')
+        }),
+        ('Архивирование', {
+            'fields': ('is_archived', 'archived_at', 'archived_by'),
+            'classes': ('collapse',),
+            'description': 'Настройки архивирования записи'
+        }),
+    )
+    
+    # Убираем поле user из формы
+    exclude = ('user',)
+    
+    def get_readonly_fields(self, request, obj=None):
+        """Делаем поле user только для чтения"""
+        readonly_fields = list(super().get_readonly_fields(request, obj))
+        if obj:  # Только для существующих записей
+            readonly_fields.append('user')
+        return readonly_fields
+    
+    def get_form(self, request, obj=None, **kwargs):
+        """Инициализируем форму с данными из связанного пользователя"""
+        form = super().get_form(request, obj, **kwargs)
+        
+        if obj and obj.user_id:
+            # Если поля Athlete пустые, но есть данные в User, копируем их
+            if not obj.first_name and obj.user.first_name:
+                obj.first_name = obj.user.first_name
+            if not obj.last_name and obj.user.last_name:
+                obj.last_name = obj.user.last_name
+        
+        return form
 
     # # URLs для загрузок (аватар/документы)
     def get_urls(self):
@@ -459,8 +612,9 @@ class AthleteAdmin(admin.ModelAdmin):
     
     def get_full_name(self, obj):
         """Полное имя спортсмена"""
-        first_name = (getattr(obj, 'first_name', None) or obj.user.first_name or "")
-        last_name = (getattr(obj, 'last_name', None) or obj.user.last_name or "")
+        # Приоритет: поля модели Athlete, затем User
+        first_name = (obj.first_name or obj.user.first_name or "")
+        last_name = (obj.last_name or obj.user.last_name or "")
         return f"{last_name} {first_name}".strip() or obj.user.username
     get_full_name.short_description = "ФИО"
     
@@ -508,6 +662,20 @@ class AthleteAdmin(admin.ModelAdmin):
             'athleteparent_set__parent__user'
         )
         return qs
+    
+    def save_model(self, request, obj, form, change):
+        """Синхронизируем ФИО с пользователем при сохранении"""
+        super().save_model(request, obj, form, change)
+        
+        # Если есть связанный пользователь, синхронизируем ФИО
+        if obj.user_id:
+            user = obj.user
+            # Синхронизируем ФИО в обе стороны
+            if obj.first_name:
+                user.first_name = obj.first_name
+            if obj.last_name:
+                user.last_name = obj.last_name
+            user.save(update_fields=['first_name', 'last_name'])
 
 @admin.register(TrainingGroup)
 class TrainingGroupAdmin(admin.ModelAdmin):
@@ -1190,6 +1358,46 @@ class CustomUserAdmin(UserAdmin):
         extra_context = extra_context or {}
         extra_context['show_registration_button'] = True
         return super().changelist_view(request, extra_context)
+    
+    def save_model(self, request, obj, form, change):
+        """Синхронизируем ФИО из User в связанные профили"""
+        super().save_model(request, obj, form, change)
+        
+        # Получаем ФИО из User
+        user_first_name = obj.first_name
+        user_last_name = obj.last_name
+        
+        # Синхронизируем с Athlete
+        if hasattr(obj, 'athlete') and obj.athlete:
+            athlete = obj.athlete
+            if not athlete.first_name or not athlete.last_name:
+                athlete.first_name = user_first_name
+                athlete.last_name = user_last_name
+                athlete.save(update_fields=['first_name', 'last_name'])
+        
+        # Синхронизируем с Trainer
+        if hasattr(obj, 'trainer') and obj.trainer:
+            trainer = obj.trainer
+            if not trainer.first_name or not trainer.last_name:
+                trainer.first_name = user_first_name
+                trainer.last_name = user_last_name
+                trainer.save(update_fields=['first_name', 'last_name'])
+        
+        # Синхронизируем с Parent
+        if hasattr(obj, 'parent') and obj.parent:
+            parent = obj.parent
+            if not parent.first_name or not parent.last_name:
+                parent.first_name = user_first_name
+                parent.last_name = user_last_name
+                parent.save(update_fields=['first_name', 'last_name'])
+        
+        # Синхронизируем с Staff
+        if hasattr(obj, 'staff') and obj.staff:
+            staff = obj.staff
+            if not staff.first_name or not staff.last_name:
+                staff.first_name = user_first_name
+                staff.last_name = user_last_name
+                staff.save(update_fields=['first_name', 'last_name'])
 
 # Регистрируем кастомный UserAdmin
 admin.site.unregister(User)

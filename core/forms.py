@@ -53,7 +53,11 @@ class TrainerForm(forms.ModelForm):
 class ParentForm(forms.ModelForm):
     class Meta:
         model = Parent
-        fields = ("phone", "birth_date")
+        fields = ("last_name", "first_name", "phone", "birth_date")
+        widgets = {
+            'birth_date': forms.DateInput(attrs={'type': 'date'}),
+            'phone': forms.TextInput(attrs={'placeholder': '+7 (999) 123-45-67'}),
+        }
 
 
 class AthleteForm(forms.ModelForm):

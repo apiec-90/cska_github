@@ -92,6 +92,9 @@ class Parent(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, verbose_name="Пользователь")
     phone = models.CharField(max_length=255, null=True, blank=True, unique=True, default=None, verbose_name="Телефон")
     birth_date = models.DateField(null=True, blank=True, verbose_name="Дата рождения")
+    # Новые поля ФИО на профиль родителя
+    first_name = models.CharField(max_length=150, null=True, blank=True, verbose_name="Имя")
+    last_name = models.CharField(max_length=150, null=True, blank=True, verbose_name="Фамилия")
     is_archived = models.BooleanField(default=False, verbose_name="Архивирован")
     archived_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата архивирования")
     archived_by = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Архивирован кем")
@@ -102,7 +105,9 @@ class Parent(models.Model):
         verbose_name_plural = "Родители"
 
     def __str__(self):
-        return f"{self.user.last_name} {self.user.first_name}".strip()
+        first_name = (self.first_name or self.user.first_name or self.user.username)
+        last_name = (self.last_name or self.user.last_name or "")
+        return f"{last_name} {first_name}".strip()
     
     def get_children_relations(self):
         """Связи Parent↔Athlete (AthleteParent) с предзагрузкой пользователя ребёнка"""
