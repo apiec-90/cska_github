@@ -58,7 +58,7 @@ class PaymentMethodAdmin(admin.ModelAdmin):
 
 @admin.register(Trainer)
 class TrainerAdmin(admin.ModelAdmin):
-    list_display = ['get_full_name', 'get_phone', 'get_groups_count', 'get_athletes_count', 'get_active_status', 'is_archived']
+    list_display = ['get_full_name', 'get_phone', 'birth_date', 'get_groups_display', 'get_athletes_count', 'get_active_status', 'is_archived']
     list_filter = ['is_archived', 'user__is_active']
     search_fields = ['user__first_name', 'user__last_name', 'user__username', 'phone']
     ordering = ['user__last_name', 'user__first_name']
@@ -109,6 +109,15 @@ class TrainerAdmin(admin.ModelAdmin):
             total=models.Count('athletetraininggroup__athlete', distinct=True)
         )['total'] or 0
     get_athletes_count.short_description = "Спортсменов"
+    
+    def get_groups_display(self, obj):
+        """Отображение групп тренера"""
+        groups = obj.traininggroup_set.filter(is_active=True)
+        if groups:
+            group_names = [group.name for group in groups]
+            return ", ".join(group_names)
+        return "Групп нет"
+    get_groups_display.short_description = "Группы"
     
     def get_queryset(self, request):
         """Оптимизируем запросы"""
@@ -217,7 +226,7 @@ class StaffAdmin(admin.ModelAdmin):
 
 @admin.register(Parent)
 class ParentAdmin(admin.ModelAdmin):
-    list_display = ('get_full_name', 'get_phone', 'get_children_display', 'get_active_status', 'is_archived')
+    list_display = ('get_full_name', 'get_phone', 'birth_date', 'get_children_display', 'get_active_status', 'is_archived')
     list_filter = ('is_archived', 'user__is_active')
     search_fields = ('user__first_name', 'user__last_name', 'phone')
     ordering = ('user__last_name', 'user__first_name')
@@ -250,13 +259,16 @@ class ParentAdmin(admin.ModelAdmin):
     get_phone.short_description = "Телефон"
     
     def get_children_display(self, obj):
-        """Дети родителя"""
+        """Дети родителя с ФИО"""
         rels = obj.get_children_relations()
 
         if rels:
             children_names = []
             for rel in rels:
-                child_name = f"{rel.athlete.user.last_name} {rel.athlete.user.first_name}".strip()
+                # Используем ФИО из профиля спортсмена, если есть
+                first_name = (rel.athlete.first_name or rel.athlete.user.first_name or "")
+                last_name = (rel.athlete.last_name or rel.athlete.user.last_name or "")
+                child_name = f"{last_name} {first_name}".strip()
                 if not child_name:
                     child_name = rel.athlete.user.username
                 children_names.append(child_name)
@@ -286,9 +298,9 @@ class ParentAdmin(admin.ModelAdmin):
         if obj and obj.user:
             # Если поля first_name или last_name пустые, заполняем из User
             if not obj.first_name and obj.user.first_name:
-                form.base_fields['first_name'].initial = obj.user.first_name
+                obj.first_name = obj.user.first_name
             if not obj.last_name and obj.user.last_name:
-                form.base_fields['last_name'].initial = obj.user.last_name
+                obj.last_name = obj.user.last_name
         elif not obj:  # При создании новой записи
             # Если есть user_id в GET параметрах, инициализируем из User
             user_id = request.GET.get('user_id')
