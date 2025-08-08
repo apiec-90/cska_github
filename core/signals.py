@@ -24,118 +24,12 @@ GROUP_MODEL_MAPPING = {
     },
 }
 
-@receiver(m2m_changed, sender=User.groups.through)
-def create_role_records(sender, instance, action, pk_set, **kwargs):
-    """Создает записи в соответствующих моделях при добавлении пользователя в группу"""
-    if action == "post_add":  # Только при добавлении в группу
-        user = instance
-        
-        # Получаем все группы пользователя
-        user_groups = user.groups.all()
-        
-        for group in user_groups:
-            if group.name in GROUP_MODEL_MAPPING:
-                # Обработка специальных групп (Родители, Спортсмены, Тренеры, Менеджеры)
-                config = GROUP_MODEL_MAPPING[group.name]
-                model_class = config['model']
-                role = config.get('role')
-                
-                # Проверяем, есть ли уже запись для этого пользователя
-                existing_record = model_class.objects.filter(user=user).first()
-                
-                if not existing_record:
-                    # Создаем новую запись
-                    if role:
-                        # Для Staff с ролью и дефолтными значениями
-                        from datetime import date
-                        new_record = model_class.objects.create(
-                            user=user, 
-                            role=role,
-                            birth_date=date(1990, 1, 1),  # Дефолтная дата
-                            phone=f"+7{user.id:09d}",  # Дефолтный телефон
-                        )
-                    else:
-                        # Для Parent, Athlete и Trainer без ролей
-                        if model_class == Trainer:
-                            # Для Trainer нужны обязательные поля
-                            from datetime import date
-                            new_record = model_class.objects.create(
-                                user=user,
-                                birth_date=date(1990, 1, 1),
-                                phone=f"+7{user.id:09d}",
-                            )
-                        else:
-                            new_record = model_class.objects.create(user=user)
-                    
-                    print(f"Создана запись {model_class.__name__} для пользователя {user.username} в группе {group.name}")
-                    if role:
-                        print(f"Назначена роль: {role}")
-                    
-                    # Логируем создание
-                    AuditRecord.objects.create(
-                        user=user,
-                        action=f'create_{model_class.__name__.lower()}',
-                        content_type=ContentType.objects.get_for_model(model_class),
-                        object_id=new_record.id,
-                        details=f"Автоматически создана запись {model_class.__name__} при добавлении в группу {group.name}" + (f" с ролью {role}" if role else "")
-                    )
-                else:
-                    # Если запись уже существует, обновляем роль (только для Staff)
-                    if isinstance(existing_record, Staff) and role:
-                        if existing_record.role != role:
-                            old_role = existing_record.role
-                            existing_record.role = role
-                            existing_record.save(update_fields=['role'])
-                            print(f"Обновлена роль для {user.username}: {old_role} → {role}")
-                            
-                            # Логируем изменение роли
-                            AuditRecord.objects.create(
-                                user=user,
-                                action='update_staff_role',
-                                content_type=ContentType.objects.get_for_model(Staff),
-                                object_id=existing_record.id,
-                                details=f"Изменена роль с {old_role} на {role} при добавлении в группу {group.name}"
-                            )
-            else:
-                # Для любой другой группы создаем Staff с ролью 'other'
-                existing_staff = Staff.objects.filter(user=user).first()
-                
-                if not existing_staff:
-                    # Создаем Staff для новой группы
-                    from datetime import date
-                    new_staff = Staff.objects.create(
-                        user=user,
-                        role='other',  # Дефолтная роль для новых групп
-                        birth_date=date(1990, 1, 1),
-                        phone=f"+7{user.id:09d}",
-                    )
-                    
-                    print(f"Создана запись Staff для пользователя {user.username} в новой группе {group.name}")
-                    
-                    # Логируем создание
-                    AuditRecord.objects.create(
-                        user=user,
-                        action='create_staff',
-                        content_type=ContentType.objects.get_for_model(Staff),
-                        object_id=new_staff.id,
-                        details=f"Автоматически создана запись Staff при добавлении в новую группу {group.name} с ролью 'other'"
-                    )
-                else:
-                    # Если Staff уже существует, обновляем роль на 'other' если она была другой
-                    if existing_staff.role != 'other':
-                        old_role = existing_staff.role
-                        existing_staff.role = 'other'
-                        existing_staff.save(update_fields=['role'])
-                        print(f"Обновлена роль для {user.username}: {old_role} → other (новая группа {group.name})")
-                        
-                        # Логируем изменение роли
-                        AuditRecord.objects.create(
-                            user=user,
-                            action='update_staff_role',
-                            content_type=ContentType.objects.get_for_model(Staff),
-                            object_id=existing_staff.id,
-                            details=f"Изменена роль с {old_role} на 'other' при добавлении в новую группу {group.name}"
-                        )
+# ВРЕМЕННО ОТКЛЮЧЕНО - создание записей ролей перенесено в админские представления
+# @receiver(m2m_changed, sender=User.groups.through)
+# def create_role_records(sender, instance, action, pk_set, **kwargs):
+#     """Создает записи в соответствующих моделях при добавлении пользователя в группу"""
+#     # Сигнал отключен - записи создаются в админских представлениях после заполнения профиля
+#     pass
 
 @receiver(m2m_changed, sender=User.groups.through)
 def remove_role_records(sender, instance, action, pk_set, **kwargs):

@@ -22,6 +22,7 @@ from core.views import (
     start_registration,
     step2_view,
     step3_view,
+    step4_view,
     cancel_registration,
     finish_registration,
 )
@@ -31,6 +32,7 @@ urlpatterns = [
     path('register/', start_registration, name='start_registration'),
     path('register/step2/<int:draft_id>/', step2_view, name='register_step2'),
     path('register/step3/<int:draft_id>/', step3_view, name='register_step3'),
+    path('register/step4/<int:draft_id>/', step4_view, name='register_step4'),
     path('register/cancel/', cancel_registration, name='cancel_registration'),
     path('register/done/', finish_registration, name='register_done'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

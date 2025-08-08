@@ -24,10 +24,26 @@ class Step2RoleForm(forms.Form):
     role = forms.ChoiceField(label="Роль", choices=ROLE_CHOICES, required=True)
 
 
+class CommonProfileForm(forms.Form):
+    """Общая форма профиля для всех ролей (шаг 3)"""
+    last_name = forms.CharField(label="Фамилия", max_length=150)
+    first_name = forms.CharField(label="Имя", max_length=150)
+    phone = forms.CharField(label="Телефон", max_length=255, required=False, 
+                          widget=forms.TextInput(attrs={'placeholder': '+7 (999) 123-45-67'}))
+    birth_date = forms.DateField(label="Дата рождения", widget=forms.DateInput(attrs={'type': 'date'}))
+
+
+class StaffSubroleForm(forms.Form):
+    """Форма выбора подроли для сотрудника (шаг 4)"""
+    subrole = forms.ChoiceField(label="Подроль", choices=[
+        ('manager', 'Менеджер'),
+    ], required=True)
+
+
 class TrainerForm(forms.ModelForm):
     class Meta:
         model = Trainer
-        fields = ("last_name", "first_name", "specialization", "experience_years", "certification", "phone", "birth_date")
+        fields = ("last_name", "first_name", "phone", "birth_date")
         widgets = {
             'birth_date': forms.DateInput(attrs={'type': 'date'}),
             'phone': forms.TextInput(attrs={'placeholder': '+7 (999) 123-45-67'}),
@@ -63,7 +79,18 @@ class Step3StaffRoleForm(forms.Form):
 class StaffForm(forms.ModelForm):
     class Meta:
         model = Staff
-        fields = ("role", "last_name", "first_name", "phone", "birth_date")
+        fields = ("role", "subrole", "last_name", "first_name", "phone", "birth_date")
+        widgets = {
+            'birth_date': forms.DateInput(attrs={'type': 'date'}),
+            'phone': forms.TextInput(attrs={'placeholder': '+7 (999) 123-45-67'}),
+        }
+
+
+class StaffRegisterProfileForm(forms.ModelForm):
+    """Форма шага 4 (админ) — только профиль сотрудника без роли/подроли"""
+    class Meta:
+        model = Staff
+        fields = ("last_name", "first_name", "phone", "birth_date")
         widgets = {
             'birth_date': forms.DateInput(attrs={'type': 'date'}),
             'phone': forms.TextInput(attrs={'placeholder': '+7 (999) 123-45-67'}),

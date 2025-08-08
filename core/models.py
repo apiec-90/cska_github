@@ -22,9 +22,6 @@ class Trainer(models.Model):
     """Тренер"""
     id = models.BigAutoField(primary_key=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE, verbose_name="Пользователь")
-    specialization = models.CharField(max_length=100, blank=True, verbose_name="Специализация")
-    experience_years = models.IntegerField(default=0, verbose_name="Опыт работы (лет)")
-    certification = models.TextField(blank=True, verbose_name="Сертификация")
     phone = models.CharField(max_length=255, unique=True, verbose_name="Телефон")
     birth_date = models.DateField(verbose_name="Дата рождения")
     # Новые поля ФИО на профиль тренера
@@ -43,8 +40,7 @@ class Trainer(models.Model):
         # # Фолбэк на профильные ФИО, затем на user.username
         first_name = (self.first_name or self.user.first_name or self.user.username)
         last_name = (self.last_name or self.user.last_name or "")
-        spec = f" - {self.specialization}" if self.specialization else ""
-        return f"{first_name} {last_name}{spec}".strip()
+        return f"{first_name} {last_name}".strip()
     
     def get_groups_count(self):
         """Получить количество групп тренера"""
@@ -60,19 +56,13 @@ class Trainer(models.Model):
 class Staff(models.Model):
     """Сотрудник (вспомогательные роли)"""
     ROLE_CHOICES = [
-        ('admin', 'Администратор'),
-        ('accountant', 'Бухгалтер'),
-        ('cleaner', 'Уборщица'),
-        ('security', 'Охрана'),
-        ('doctor', 'Врач'),
-        ('psychologist', 'Психолог'),
-        ('manager', 'Менеджер'),
-        ('other', 'Другой'),
+        ('manager', 'Менеджер'),  # оставляем только менеджера
     ]
     
     id = models.BigAutoField(primary_key=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE, verbose_name="Пользователь")
-    role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='other', verbose_name="Роль")
+    role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='manager', verbose_name="Роль")
+    subrole = models.CharField(max_length=100, null=True, blank=True, verbose_name="Подроль")  # оставляем поле для совместимости, но не используем
     is_archived = models.BooleanField(default=False, verbose_name="Архивирован")
     archived_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата архивирования")
     archived_by = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Архивирован кем")

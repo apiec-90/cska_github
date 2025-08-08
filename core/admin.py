@@ -38,6 +38,7 @@ from .forms import (
     ParentRelationsForm,
     TrainerRelationsForm
 )
+from .utils import assign_groups_for_registration
 
 # Регистрируем стандартные Django модели
 admin.site.unregister(User)
@@ -57,9 +58,9 @@ class PaymentMethodAdmin(admin.ModelAdmin):
 
 @admin.register(Trainer)
 class TrainerAdmin(admin.ModelAdmin):
-    list_display = ['get_full_name', 'get_phone', 'specialization', 'experience_years', 'get_groups_count', 'get_athletes_count', 'get_active_status', 'is_archived']
-    list_filter = ['specialization', 'is_archived', 'experience_years', 'user__is_active']
-    search_fields = ['user__first_name', 'user__last_name', 'user__username', 'specialization', 'phone']
+    list_display = ['get_full_name', 'get_phone', 'get_groups_count', 'get_athletes_count', 'get_active_status', 'is_archived']
+    list_filter = ['is_archived', 'user__is_active']
+    search_fields = ['user__first_name', 'user__last_name', 'user__username', 'phone']
     ordering = ['user__last_name', 'user__first_name']
     # # убираем кастомный шаблон — оставляем стандартный вид
     # change_form_template = 'admin/core/trainer/change_form.html'
@@ -663,7 +664,14 @@ class Step2RegistrationView(RegistrationAdminView):
         form = Step2RoleForm(request.POST)
         
         if form.is_valid():
-            draft.role = form.cleaned_data['role']
+            role = form.cleaned_data['role']
+            draft.role = role
+            draft.current_step = 2
+            draft.save()
+            
+            # Назначаем базовую группу по роли
+            assign_groups_for_registration(draft.user, role)
+            
             # если сотрудник — идем на выбор подроли (шаг 3а)
             if draft.role == 'staff':
                 draft.current_step = 3
@@ -717,9 +725,14 @@ class Step3StaffRoleView(RegistrationAdminView):
 
         form = Step3StaffRoleForm(request.POST)
         if form.is_valid():
-            draft.staff_role = form.cleaned_data['staff_role']
+            subrole = form.cleaned_data['staff_role']
+            draft.staff_role = subrole
             draft.current_step = 4
             draft.save()
+            
+            # Назначаем группу подроли для staff
+            assign_groups_for_registration(draft.user, 'staff', subrole)
+            
             return HttpResponseRedirect(reverse('admin:register_step4', args=[draft.id]))
         return render(request, 'admin/core/registration/step3_staff_role.html', {
             'form': form,
@@ -788,8 +801,11 @@ class Step3ProfileView(RegistrationAdminView):
                 draft.user.first_name = form.cleaned_data['first_name']
                 draft.user.last_name = form.cleaned_data['last_name']
                 draft.user.save()
-                Parent.objects.create(user=draft.user)
-                # # сохраним телефон в Parent через форму шага 4 профиля parent? Здесь переносим в модель через ParentForm на шаге 4 профиля staff
+                # Создаем запись Parent с данными профиля
+                Parent.objects.create(
+                    user=draft.user,
+                    phone=form.cleaned_data.get('phone', '')
+                )
                 draft.current_step = 4
                 draft.save()
                 return HttpResponseRedirect(reverse('admin:register_step4_relations', args=[draft.id]))
@@ -833,7 +849,9 @@ class Step4ProfileView(RegistrationAdminView):
         elif draft.role == 'athlete':
             form = AthleteForm()
         elif draft.role == 'staff':
-            form = StaffForm(initial={'role': draft.staff_role})
+            # На шаге 4 профиль без выбора роли/подроли
+            from .forms import StaffRegisterProfileForm
+            form = StaffRegisterProfileForm()
         else:
             messages.error(request, 'Неизвестная роль')
             return HttpResponseRedirect(reverse('admin:register_cancel'))
@@ -862,7 +880,8 @@ class Step4ProfileView(RegistrationAdminView):
         elif draft.role == 'athlete':
             form = AthleteForm(request.POST)
         elif draft.role == 'staff':
-            form = StaffForm(request.POST)
+            from .forms import StaffRegisterProfileForm
+            form = StaffRegisterProfileForm(request.POST)
         else:
             messages.error(request, 'Неизвестная роль')
             return HttpResponseRedirect(reverse('admin:register_cancel'))

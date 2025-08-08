@@ -75,8 +75,8 @@ class Command(BaseCommand):
         
         # Создаем тренеров
         trainers_data = [
-            {'username': 'trainer1', 'first_name': 'Алексей', 'last_name': 'Тренеров', 'specialization': 'Футбол'},
-            {'username': 'trainer2', 'first_name': 'Мария', 'last_name': 'Тренерова', 'specialization': 'Баскетбол'},
+            {'username': 'trainer1', 'first_name': 'Алексей', 'last_name': 'Тренеров'},
+            {'username': 'trainer2', 'first_name': 'Мария', 'last_name': 'Тренерова'},
         ]
         
         trainers = []
@@ -91,8 +91,6 @@ class Command(BaseCommand):
             
             trainer = Trainer.objects.create(
                 user=user,
-                specialization=trainer_data['specialization'],
-                experience_years=5 + i,
                 phone=f'+7900123456{i+1}',
                 birth_date=date(1990, 3, 10 + i)
             )
