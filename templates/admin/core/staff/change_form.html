@@ -1,37 +1,23 @@
 {% extends "admin/change_form.html" %}
-{% load static %}
+{% block content %}
+<div class="card mb-3">
+  <div class="card-body d-flex align-items-center gap-3">
+    <div class="d-flex align-items-center justify-content-center rounded-circle" style="width:68px;height:68px;background:#e9ecef;">
+      <strong>{{ original.user.first_name|default:original.user.username|first|upper }}</strong>
+    </div>
+    <div class="flex-fill">
+      <div class="h5 mb-1">
+        {{ original.user.last_name }} {{ original.user.first_name }}{% if not original.user.first_name and not original.user.last_name %}{{ original.user.username }}{% endif %}
+      </div>
+      <div class="text-muted">Роль: {{ original.get_role_display|default:"—" }} • Телефон: {{ original.phone|default:"—" }}</div>
+    </div>
+    <div>
+      <span class="badge {% if original.user.is_active %}badge-success{% else %}badge-secondary{% endif %}">
+        {% if original.user.is_active %}Активен{% else %}Неактивен{% endif %}
+      </span>
+    </div>
+  </div>
+</div>
 
-{% block extrahead %}
 {{ block.super }}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const roleField = document.getElementById('id_role');
-    const customRoleField = document.getElementById('id_custom_role');
-    const customRoleRow = customRoleField ? customRoleField.closest('.form-row') : null;
-    
-    function toggleCustomRole() {
-        if (!roleField || !customRoleRow) return;
-        
-        if (roleField.value === 'other') {
-            customRoleRow.style.display = 'block';
-            if (customRoleField) {
-                customRoleField.required = true;
-                customRoleField.disabled = false;
-            }
-        } else {
-            customRoleRow.style.display = 'none';
-            if (customRoleField) {
-                customRoleField.required = false;
-                customRoleField.value = '';
-                customRoleField.disabled = true;
-            }
-        }
-    }
-    
-    if (roleField) {
-        roleField.addEventListener('change', toggleCustomRole);
-        toggleCustomRole(); // Инициализация при загрузке
-    }
-});
-</script>
 {% endblock %}

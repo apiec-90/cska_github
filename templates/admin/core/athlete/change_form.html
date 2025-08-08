@@ -1,0 +1,243 @@
+{% extends "admin/change_form.html" %}
+{% block content %}
+<div class="card w-100">
+  <div class="card-body">
+    <div class="row">
+      <!-- Левая колонка: Аватар и данные спортсмена -->
+      <div class="col-md-3">
+        <div class="text-center">
+          <!-- Вертикальный прямоугольник для аватара -->
+          <div class="position-relative mb-3" style="width:200px;height:250px;margin:0 auto;border:2px dashed #dee2e6;border-radius:8px;overflow:hidden;cursor:pointer;" onclick="document.getElementById('avatar-upload').click();">
+            {% if original.photo %}
+              <img src="{{ original.photo }}" alt="avatar" style="width:100%;height:100%;object-fit:cover;"/>
+            {% else %}
+              <div class="d-flex align-items-center justify-content-center h-100" style="background:#f8f9fa;">
+                <div class="text-center">
+                  <i class="fas fa-user" style="font-size:48px;color:#6c757d;"></i>
+                  <div class="mt-2 text-muted">Нажмите для загрузки</div>
+                </div>
+              </div>
+            {% endif %}
+            <!-- Скрытая форма загрузки -->
+            <form id="avatar-form" action="{% url 'admin:core_athlete_upload_avatar' original.pk %}" method="post" enctype="multipart/form-data" style="display:none;">
+              {% csrf_token %}
+              <input type="file" id="avatar-upload" name="avatar" accept="image/*" onchange="this.form.submit();">
+            </form>
+          </div>
+          
+          <!-- Данные спортсмена -->
+          <h5 class="mb-2">
+            {{ original.user.last_name }} {{ original.user.first_name }}{% if not original.user.first_name and not original.user.last_name %}{{ original.user.username }}{% endif %}
+          </h5>
+          <div class="text-muted mb-2">
+            <div><strong>Телефон:</strong> {{ original.phone|default:"—" }}</div>
+            <div><strong>Дата рождения:</strong> {{ original.birth_date|date:"d.m.Y"|default:"—" }}</div>
+          </div>
+          <span class="badge {% if original.user.is_active %}badge-success{% else %}badge-secondary{% endif %}">
+            {% if original.user.is_active %}Активен{% else %}Неактивен{% endif %}
+          </span>
+        </div>
+      </div>
+      
+      <!-- Правая колонка: Родители, группы и документы -->
+      <div class="col-md-9">
+        <div class="row">
+          <!-- Блок родителей -->
+          <div class="col-md-6">
+            <h6 class="mb-3"><strong>Родители</strong></h6>
+            {% if athlete_parents %}
+              {% for r in athlete_parents %}
+                <div class="mb-3 p-3 border rounded">
+                  <div class="d-flex align-items-center mb-2">
+                    <div class="d-flex align-items-center justify-content-center rounded-circle me-3" style="width:40px;height:40px;background:#e9ecef;">
+                      <strong>{{ r.parent.user.first_name|default:r.parent.user.username|first|upper }}</strong>
+                    </div>
+                    <div class="flex-fill">
+                      <div class="fw-bold">{{ r.parent.user.last_name }} {{ r.parent.user.first_name }}</div>
+                      {% if r.parent.phone %}
+                        <small class="text-muted">{{ r.parent.phone }}</small>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            {% else %}
+              <em>Родители не указаны</em>
+            {% endif %}
+          </div>
+          
+          <!-- Блок групп -->
+          <div class="col-md-6">
+            <h6 class="mb-3"><strong>Тренировочные группы</strong></h6>
+            {% if athlete_groups %}
+              {% for r in athlete_groups %}
+                <div class="mb-3 p-3 border rounded">
+                  <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h6 class="mb-0 text-primary">{{ r.training_group.name }}</h6>
+                    <span class="badge {% if r.training_group.is_active %}badge-success{% else %}badge-secondary{% endif %}">
+                      {% if r.training_group.is_active %}Активна{% else %}Неактивна{% endif %}
+                    </span>
+                  </div>
+                  
+                  <div class="small text-muted">
+                    <div><strong>Возраст:</strong> {{ r.training_group.age_min }}-{{ r.training_group.age_max }} лет</div>
+                    <div><strong>Тренер:</strong> 
+                      {% if r.training_group.trainer %}
+                        {{ r.training_group.trainer.user.last_name }} {{ r.training_group.trainer.user.first_name }}
+                        {% if r.training_group.trainer.specialization %}
+                          ({{ r.training_group.trainer.specialization }})
+                        {% endif %}
+                        {% if r.training_group.trainer.phone %}
+                          <br><small class="text-muted">📞 {{ r.training_group.trainer.phone }}</small>
+                        {% endif %}
+                      {% else %}
+                        Не назначен
+                      {% endif %}
+                    </div>
+                    <div><strong>Спортсменов:</strong> {{ r.training_group.get_athletes_count }}/{{ r.training_group.max_athletes }}</div>
+                    
+                    <div class="mt-2"><strong>Расписание:</strong></div>
+                    {% with schedules=r.training_group.groupschedule_set.all %}
+                      {% if schedules %}
+                        {% for schedule in schedules %}
+                          <div class="ms-2">
+                            {% if schedule.weekday == 1 %}Понедельник{% elif schedule.weekday == 2 %}Вторник{% elif schedule.weekday == 3 %}Среда{% elif schedule.weekday == 4 %}Четверг{% elif schedule.weekday == 5 %}Пятница{% elif schedule.weekday == 6 %}Суббота{% elif schedule.weekday == 7 %}Воскресенье{% endif %}
+                            {{ schedule.start_time|time:"H:i" }}-{{ schedule.end_time|time:"H:i" }}
+                          </div>
+                        {% endfor %}
+                      {% else %}
+                        <div class="ms-2">Расписание не установлено</div>
+                      {% endif %}
+                    {% endwith %}
+                  </div>
+                </div>
+              {% endfor %}
+            {% else %}
+              <em>Спортсмен не привязан к группам</em>
+            {% endif %}
+          </div>
+        </div>
+        
+        <!-- Блок документов -->
+        <div class="row mt-4">
+          <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h6 class="mb-0"><strong>Документы</strong></h6>
+              <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addDocumentModal">
+                <i class="fas fa-plus"></i> Добавить документ
+              </button>
+            </div>
+            
+            {% if athlete_documents %}
+              <div class="table-responsive">
+                <table class="table table-sm">
+                  <thead>
+                    <tr>
+                      <th>Тип</th>
+                      <th>Комментарий</th>
+                      <th>Дата</th>
+                      <th width="120">Действия</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for d in athlete_documents %}
+                      <tr>
+                        <td>{{ d.document_type.name|default:"Прочее" }}</td>
+                        <td>{{ d.comment|default:"—" }}</td>
+                        <td>{{ d.uploaded_at|date:"d.m.Y H:i" }}</td>
+                        <td>
+                          <div class="btn-group btn-group-sm" role="group">
+                            <a href="{{ d.file }}" target="_blank" class="btn btn-outline-primary" title="Открыть">
+                              <i class="fas fa-eye"></i>
+                            </a>
+                                                         <button type="button" class="btn btn-outline-danger" title="Удалить" 
+                                     data-document-id="{{ d.id }}" data-document-name="{{ d.document_type.name|default:"документ" }}">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="text-center py-4">
+                <i class="fas fa-file-alt text-muted" style="font-size:48px;"></i>
+                <p class="text-muted mt-2">Документы отсутствуют</p>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Модальное окно для добавления документа -->
+<div class="modal fade" id="addDocumentModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Добавить документ</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{% url 'admin:core_athlete_upload_document' original.pk %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="document_type" class="form-label">Тип документа:</label>
+            <select name="document_type" id="document_type" class="form-select">
+              <option value="">Прочее</option>
+              {% for t in athlete_document_types %}
+                <option value="{{ t.id }}">{{ t.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="comment" class="form-label">Комментарий:</label>
+            <input type="text" name="comment" id="comment" class="form-control" placeholder="Описание документа">
+          </div>
+          <div class="mb-3">
+            <label for="document_file" class="form-label">Файл:</label>
+            <input type="file" name="document_file" id="document_file" class="form-control" required>
+            <div class="form-text">Поддерживаемые форматы: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, GIF</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="submit" class="btn btn-primary">Загрузить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Форма для удаления документа -->
+<form id="deleteDocumentForm" method="post" style="display:none;">
+  {% csrf_token %}
+  <input type="hidden" name="document_id" id="deleteDocumentId">
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Обработчик для кнопок удаления документов
+  document.querySelectorAll('[data-document-id]').forEach(function(button) {
+    button.addEventListener('click', function() {
+      var documentId = this.getAttribute('data-document-id');
+      var documentName = this.getAttribute('data-document-name');
+      
+      if (confirm('Вы уверены, что хотите удалить документ "' + documentName + '"?')) {
+        document.getElementById('deleteDocumentId').value = documentId;
+        document.getElementById('deleteDocumentForm').action = "{% url 'admin:core_athlete_delete_document' original.pk %}";
+        document.getElementById('deleteDocumentForm').submit();
+      }
+    });
+  });
+});
+</script>
+
+{{ block.super }}
+{% endblock %}
+
+

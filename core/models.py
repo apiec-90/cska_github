@@ -38,7 +38,11 @@ class Trainer(models.Model):
         verbose_name_plural = "Тренеры"
 
     def __str__(self):
-        return f"{self.user.first_name} {self.user.last_name} - {self.specialization}"
+        # # Фолбэк на username, если ФИО не заполнено
+        first_name = self.user.first_name or self.user.username
+        last_name = self.user.last_name or ""
+        spec = f" - {self.specialization}" if self.specialization else ""
+        return f"{first_name} {last_name}{spec}".strip()
     
     def get_groups_count(self):
         """Получить количество групп тренера"""
@@ -92,6 +96,7 @@ class Parent(models.Model):
     id = models.BigAutoField(primary_key=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE, verbose_name="Пользователь")
     photo = models.TextField(default="", verbose_name="Фото")  # URL или путь к файлу
+    phone = models.CharField(max_length=255, default="", blank=True, verbose_name="Телефон")
     is_archived = models.BooleanField(default=False, verbose_name="Архивирован")
     archived_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата архивирования")
     archived_by = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Архивирован кем")
@@ -103,12 +108,27 @@ class Parent(models.Model):
 
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name}"
+    
+    def get_children_relations(self):
+        """Связи Parent↔Athlete (AthleteParent) с предзагрузкой пользователя ребёнка"""
+        return self.athleteparent_set.select_related('athlete__user')
+
+    def get_children(self):
+        """Получить queryset объектов Athlete, связанных с данным родителем"""
+        from .models import Athlete  # локально, чтобы избежать циклического импорта при миграциях
+        return (
+            Athlete.objects
+            .filter(athleteparent__parent=self)
+            .select_related('user')
+            .distinct()
+        )
 
 class Athlete(models.Model):
     """Спортсмен"""
     id = models.BigAutoField(primary_key=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE, verbose_name="Пользователь")
     birth_date = models.DateField(verbose_name="Дата рождения")
+    phone = models.CharField(max_length=255, default="", blank=True, verbose_name="Телефон")
     photo = models.TextField(default="", verbose_name="Фото")  # URL или путь к файлу
     is_archived = models.BooleanField(default=False, verbose_name="Архивирован")
     archived_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата архивирования")
@@ -340,17 +360,18 @@ class AuditRecord(models.Model):
 
 
 class RegistrationDraft(models.Model):
-    """Черновик регистрации пользователя в 3 шага.
+    """Черновик регистрации пользователя в 4 шага.
 
     Создается на шаге 1 вместе с временным пользователем (user.is_active=False).
-    Хранит выбранную роль и текущий шаг. При удалении незавершенного черновика
-    автоматически удаляет временного пользователя.
+    Хранит выбранную роль и текущий шаг. Для сотрудника хранит подроль.
+    При удалении незавершенного черновика автоматически удаляет временного пользователя.
     """
 
     ROLE_CHOICES = (
         ("trainer", "Тренер"),
         ("parent", "Родитель"),
         ("athlete", "Спортсмен"),
+        ("staff", "Сотрудник"),  # добавили тип сотрудник
     )
 
     id = models.BigAutoField(primary_key=True)
@@ -359,6 +380,7 @@ class RegistrationDraft(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name="created_registration_drafts",
                                    verbose_name="Кем начато")
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, null=True, blank=True, verbose_name="Роль")
+    staff_role = models.CharField(max_length=100, null=True, blank=True, verbose_name="Подроль сотрудника")  # для staff
     current_step = models.PositiveSmallIntegerField(default=1, verbose_name="Текущий шаг")
     is_completed = models.BooleanField(default=False, verbose_name="Завершено")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создано")
