@@ -46,8 +46,24 @@ admin.site.register(User, UserAdmin)
 
 # Inline для связей спортсмен-родитель
 class AthleteParentInline(admin.TabularInline):
+    """Inline для управления родителями спортсмена"""
     model = AthleteParent
+    fk_name = 'athlete'  # связь от спортсмена к родителю
     extra = 1
+    verbose_name = "Родитель"
+    verbose_name_plural = "Родители"
+    fields = ('parent',)
+    autocomplete_fields = ['parent']
+
+class ParentAthleteInline(admin.TabularInline):
+    """Inline для управления детьми родителя"""
+    model = AthleteParent
+    fk_name = 'parent'  # связь от родителя к спортсмену
+    extra = 1
+    verbose_name = "Ребенок"
+    verbose_name_plural = "Дети"
+    fields = ('athlete',)
+    autocomplete_fields = ['athlete']
 
 @admin.register(PaymentMethod)
 class PaymentMethodAdmin(admin.ModelAdmin):
@@ -446,8 +462,8 @@ class ParentAdmin(admin.ModelAdmin):
     list_filter = ('is_archived', 'user__is_active')
     search_fields = ('user__first_name', 'user__last_name', 'phone')
     ordering = ('user__last_name', 'user__first_name')
-    # # инлайны не используем, карточка сверху формы
-    inlines = []
+    # # инлайны для управления связями с детьми
+    inlines = [ParentAthleteInline]
     # # кастомный шаблон карточки родителя
     change_form_template = 'admin/core/parent/change_form.html'
     
@@ -798,8 +814,8 @@ class AthleteAdmin(admin.ModelAdmin):
     list_filter = ('is_archived', 'birth_date', 'user__is_active')
     search_fields = ('user__first_name', 'user__last_name', 'phone')
     ordering = ('user__last_name', 'user__first_name')
-    # # инлайны не используем, карточка сверху формы
-    inlines = []
+    # # инлайны для управления связями с родителями
+    inlines = [AthleteParentInline]
     # # кастомный шаблон карточки спортсмена
     change_form_template = 'admin/core/athlete/change_form.html'
     
