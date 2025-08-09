@@ -77,6 +77,9 @@ class TrainerAdmin(admin.ModelAdmin):
     
     # Убираем поле user из формы
     exclude = ('user',)
+    
+    # Кастомный шаблон
+    change_form_template = 'admin/core/trainer/change_form.html'
 
     def get_full_name(self, obj):
         """Полное имя тренера"""
@@ -130,12 +133,14 @@ class TrainerAdmin(admin.ModelAdmin):
     def get_form(self, request, obj=None, **kwargs):
         """Инициализируем форму данными из User если поля пустые"""
         form = super().get_form(request, obj, **kwargs)
-        if obj and obj.user:
-            # Если поля first_name или last_name пустые, заполняем из User
+        
+        if obj and obj.user_id:
+            # Если поля Trainer пустые, но есть данные в User, копируем их
             if not obj.first_name and obj.user.first_name:
-                form.base_fields['first_name'].initial = obj.user.first_name
+                obj.first_name = obj.user.first_name
             if not obj.last_name and obj.user.last_name:
-                form.base_fields['last_name'].initial = obj.user.last_name
+                obj.last_name = obj.user.last_name
+        
         return form
     
     def save_model(self, request, obj, form, change):
@@ -148,6 +153,141 @@ class TrainerAdmin(admin.ModelAdmin):
             user.first_name = obj.first_name
             user.last_name = obj.last_name
             user.save(update_fields=['first_name', 'last_name'])
+
+    # URLs для загрузок (аватар/документы)
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        info = self.model._meta.app_label, self.model._meta.model_name
+        trainer_urls = [
+            path('<path:object_id>/upload-avatar/', self.admin_site.admin_view(self.upload_avatar), name='%s_%s_upload_avatar' % info),
+            path('<path:object_id>/upload-document/', self.admin_site.admin_view(self.upload_document), name='%s_%s_upload_document' % info),
+            path('<path:object_id>/delete-document/', self.admin_site.admin_view(self.delete_document), name='%s_%s_delete_document' % info),
+        ]
+        return trainer_urls + urls
+
+    def upload_avatar(self, request, object_id):
+        """Загрузка аватара тренера (пока не реализовано - нет поля avatar)"""
+        from django.shortcuts import get_object_or_404, redirect
+        from django.contrib import messages
+        trainer = get_object_or_404(Trainer, pk=object_id)
+        
+        messages.error(request, 'Загрузка аватара для тренера пока не реализована.')
+        return redirect('admin:core_trainer_change', object_id=trainer.pk)
+
+    def upload_document(self, request, object_id):
+        """Загрузка документа тренера"""
+        trainer = get_object_or_404(Trainer, pk=object_id)
+        if request.method == 'POST' and request.FILES.get('document'):
+            file_obj = request.FILES['document']
+            comment = request.POST.get('comment', '')
+            document_type_id = request.POST.get('document_type')
+            
+            # Генерируем уникальное имя файла
+            import uuid
+            file_extension = file_obj.name.split('.')[-1]
+            file_name = f"trainer_{trainer.id}_doc_{uuid.uuid4().hex[:8]}.{file_extension}"
+            file_url = f"documents/{file_name}"
+            
+            # Сохраняем файл
+            import os
+            from django.conf import settings
+            
+            upload_path = os.path.join(settings.MEDIA_ROOT, 'documents')
+            os.makedirs(upload_path, exist_ok=True)
+            
+            file_path = os.path.join(upload_path, file_name)
+            with open(file_path, 'wb') as f:
+                for chunk in file_obj.chunks():
+                    f.write(chunk)
+            
+            # Создаем запись в базе данных
+            from django.contrib.contenttypes.models import ContentType
+            from core.models import Document, DocumentType
+            
+            ct_trainer = ContentType.objects.get_for_model(Trainer)
+            
+            # Получаем или создаем тип документа
+            if document_type_id:
+                try:
+                    doc_type = DocumentType.objects.get(pk=document_type_id)
+                except DocumentType.DoesNotExist:
+                    doc_type, _ = DocumentType.objects.get_or_create(name='Прочее')
+            else:
+                doc_type, _ = DocumentType.objects.get_or_create(name='Прочее')
+            
+            document = Document.objects.create(
+                document_type=doc_type,
+                content_type=ct_trainer,
+                object_id=trainer.id,
+                file=file_url,
+                file_type=file_obj.content_type,
+                file_size=file_obj.size,
+                uploaded_by=request.user,
+                comment=comment
+            )
+            
+            messages.success(request, 'Документ успешно загружен.')
+        
+        return redirect('admin:core_trainer_change', object_id=trainer.pk)
+
+    def delete_document(self, request, object_id):
+        """Удаление документа тренера"""
+        from django.shortcuts import get_object_or_404, redirect
+        from django.contrib import messages
+        from core.models import Document
+        trainer = get_object_or_404(Trainer, pk=object_id)
+        
+        if request.method == 'POST':
+            document_id = request.POST.get('document_id')
+            try:
+                document = Document.objects.get(id=document_id)
+                
+                # Удаляем файл
+                import os
+                from django.conf import settings
+                file_path = os.path.join(settings.MEDIA_ROOT, document.file)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                
+                # Удаляем запись из БД
+                document.delete()
+                
+                messages.success(request, 'Документ успешно удален.')
+            except Document.DoesNotExist:
+                messages.error(request, 'Документ не найден.')
+        
+        return redirect('admin:core_trainer_change', object_id=trainer.pk)
+
+    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+        """Переопределяем для добавления данных в шаблон"""
+        from django.shortcuts import get_object_or_404
+        extra_context = extra_context or {}
+        
+        if object_id:
+            trainer = get_object_or_404(Trainer, pk=object_id)
+            
+            # Аватар тренера (пока нет поля avatar в модели)
+            extra_context['trainer_avatar_url'] = None
+            
+            # Получаем группы тренера
+            groups = trainer.traininggroup_set.filter(is_active=True).select_related()
+            extra_context['trainer_groups'] = groups
+            
+            # Получаем документы тренера
+            from django.contrib.contenttypes.models import ContentType
+            from core.models import Document, DocumentType
+            
+            ct_trainer = ContentType.objects.get_for_model(Trainer)
+            documents = Document.objects.filter(
+                content_type=ct_trainer,
+                object_id=trainer.id
+            ).select_related('document_type', 'uploaded_by')
+            
+            extra_context['trainer_documents'] = documents
+            extra_context['document_types'] = DocumentType.objects.all()
+        
+        return super().changeform_view(request, object_id, form_url, extra_context)
 
 @admin.register(Staff)
 class StaffAdmin(admin.ModelAdmin):
@@ -230,6 +370,10 @@ class ParentAdmin(admin.ModelAdmin):
     list_filter = ('is_archived', 'user__is_active')
     search_fields = ('user__first_name', 'user__last_name', 'phone')
     ordering = ('user__last_name', 'user__first_name')
+    # # инлайны не используем, карточка сверху формы
+    inlines = []
+    # # кастомный шаблон карточки родителя
+    change_form_template = 'admin/core/parent/change_form.html'
     
     # Настройка полей для формы
     fieldsets = (
@@ -324,6 +468,251 @@ class ParentAdmin(admin.ModelAdmin):
             user.first_name = obj.first_name
             user.last_name = obj.last_name
             user.save(update_fields=['first_name', 'last_name'])
+
+    # # URLs для загрузок (аватар/документы)
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        custom = [
+            path(
+                '<path:object_id>/upload-avatar/',
+                self.admin_site.admin_view(self.upload_avatar),
+                name='core_parent_upload_avatar',
+            ),
+            path(
+                '<path:object_id>/upload-document/',
+                self.admin_site.admin_view(self.upload_document),
+                name='core_parent_upload_document',
+            ),
+            path(
+                '<path:object_id>/delete-document/',
+                self.admin_site.admin_view(self.delete_document),
+                name='core_parent_delete_document',
+            ),
+        ]
+        return custom + urls
+
+    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        documents = []
+        doc_types = DocumentType.objects.all().order_by('name')
+        avatar_url = None
+        if object_id:
+            try:
+                parent = Parent.objects.get(pk=object_id)
+                from django.contrib.contenttypes.models import ContentType
+                ct = ContentType.objects.get_for_model(Parent)
+                documents = Document.objects.filter(content_type=ct, object_id=parent.id).order_by('-uploaded_at')
+                # пробуем найти актуальный аватар из документов
+                try:
+                    avatar_type = DocumentType.objects.get(name='Аватар')
+                    avatar_doc = documents.filter(document_type=avatar_type).first()
+                    if avatar_doc:
+                        avatar_url = avatar_doc.file
+                except DocumentType.DoesNotExist:
+                    pass
+                
+                # # предзагружаем связанные данные для красивого отображения
+                parent_children = parent.get_children_relations().select_related(
+                    'athlete__user'
+                ).prefetch_related(
+                    'athlete__athletetraininggroup_set__training_group__trainer__user',
+                    'athlete__athletetraininggroup_set__training_group__groupschedule_set'
+                )
+                
+            except Parent.DoesNotExist:
+                pass
+        extra_context.update({
+            'parent_documents': documents,
+            'parent_document_types': doc_types,
+            'parent_children': parent_children if 'parent_children' in locals() else [],
+            'parent_avatar_url': avatar_url,
+        })
+        return super().changeform_view(request, object_id, form_url, extra_context)
+
+    # # загрузка аватара: сохраняем файл в MEDIA/avatars и пишем путь в parent.photo + создаем Document
+    def upload_avatar(self, request, object_id):
+        if request.method != 'POST':
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
+        file_obj = request.FILES.get('avatar')
+        if not file_obj:
+            messages.error(request, 'Файл не выбран')
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
+        try:
+            parent = Parent.objects.get(pk=object_id)
+        except Parent.DoesNotExist:
+            messages.error(request, 'Родитель не найден')
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
+
+        # Удаляем предыдущий файл аватара (если был) и документы типа "Аватар"
+        try:
+            # Удаляем старые документы-аватары
+            from django.contrib.contenttypes.models import ContentType
+            avatar_type, _ = DocumentType.objects.get_or_create(name='Аватар')
+            ct_parent = ContentType.objects.get_for_model(Parent)
+            old_docs = Document.objects.filter(document_type=avatar_type, content_type=ct_parent, object_id=parent.id)
+            for d in old_docs:
+                try:
+                    file_url = str(d.file)
+                    media_root = getattr(settings, 'MEDIA_ROOT', 'media')
+                    media_url = getattr(settings, 'MEDIA_URL', '/media/')
+                    if file_url.startswith(media_url):
+                        rel = file_url[len(media_url):]
+                    elif '/media/' in file_url:
+                        rel = file_url.split('/media/', 1)[1]
+                    else:
+                        rel = file_url.lstrip('/')
+                    file_path = os.path.join(media_root, rel)
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                except Exception as e:
+                    print(f"Ошибка удаления файла: {e}")
+                d.delete()
+        except Exception as e:
+            print(f"Ошибка очистки старых аватаров: {e}")
+
+        # Сохраняем новый файл
+        try:
+            # Создаем директорию если не существует
+            media_root = getattr(settings, 'MEDIA_ROOT', 'media')
+            avatars_dir = os.path.join(media_root, 'avatars')
+            os.makedirs(avatars_dir, exist_ok=True)
+            
+            # Генерируем уникальное имя файла
+            file_ext = os.path.splitext(file_obj.name)[1]
+            filename = f"parent_{parent.id}_{uuid.uuid4().hex[:8]}{file_ext}"
+            file_path = os.path.join(avatars_dir, filename)
+            
+            # Сохраняем файл
+            with open(file_path, 'wb+') as destination:
+                for chunk in file_obj.chunks():
+                    destination.write(chunk)
+            
+            # Создаем Document
+            media_url = getattr(settings, 'MEDIA_URL', '/media/')
+            file_url = f"{media_url}avatars/{filename}"
+            
+            document = Document.objects.create(
+                document_type=avatar_type,
+                content_type=ct_parent,
+                object_id=parent.id,
+                file=file_url,
+                file_type=file_obj.content_type,
+                file_size=file_obj.size,
+                uploaded_by=request.user,
+                comment="Аватар родителя"
+            )
+            
+            messages.success(request, 'Аватар успешно загружен')
+        except Exception as e:
+            messages.error(request, f'Ошибка загрузки аватара: {e}')
+        
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
+
+    def upload_document(self, request, object_id):
+        if request.method != 'POST':
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
+        
+        file_obj = request.FILES.get('document_file')
+        document_type_id = request.POST.get('document_type')
+        comment = request.POST.get('comment', '')
+        
+        if not file_obj:
+            messages.error(request, 'Файл не выбран')
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
+        
+        try:
+            parent = Parent.objects.get(pk=object_id)
+        except Parent.DoesNotExist:
+            messages.error(request, 'Родитель не найден')
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
+
+        try:
+            # Создаем директорию если не существует
+            media_root = getattr(settings, 'MEDIA_ROOT', 'media')
+            documents_dir = os.path.join(media_root, 'documents')
+            os.makedirs(documents_dir, exist_ok=True)
+            
+            # Генерируем уникальное имя файла
+            file_ext = os.path.splitext(file_obj.name)[1]
+            filename = f"parent_{parent.id}_{uuid.uuid4().hex[:8]}{file_ext}"
+            file_path = os.path.join(documents_dir, filename)
+            
+            # Сохраняем файл
+            with open(file_path, 'wb+') as destination:
+                for chunk in file_obj.chunks():
+                    destination.write(chunk)
+            
+            # Создаем Document
+            media_url = getattr(settings, 'MEDIA_URL', '/media/')
+            file_url = f"{media_url}documents/{filename}"
+            
+            from django.contrib.contenttypes.models import ContentType
+            ct_parent = ContentType.objects.get_for_model(Parent)
+            
+            # Получаем или создаем тип документа
+            if document_type_id:
+                try:
+                    doc_type = DocumentType.objects.get(pk=document_type_id)
+                except DocumentType.DoesNotExist:
+                    doc_type, _ = DocumentType.objects.get_or_create(name='Прочее')
+            else:
+                doc_type, _ = DocumentType.objects.get_or_create(name='Прочее')
+            
+            document = Document.objects.create(
+                document_type=doc_type,
+                content_type=ct_parent,
+                object_id=parent.id,
+                file=file_url,
+                file_type=file_obj.content_type,
+                file_size=file_obj.size,
+                uploaded_by=request.user,
+                comment=comment
+            )
+            
+            messages.success(request, 'Документ успешно загружен')
+        except Exception as e:
+            messages.error(request, f'Ошибка загрузки документа: {e}')
+        
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
+
+    def delete_document(self, request, object_id):
+        if request.method != 'POST':
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
+        
+        document_id = request.POST.get('document_id')
+        if not document_id:
+            messages.error(request, 'ID документа не указан')
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
+        
+        try:
+            document = Document.objects.get(pk=document_id)
+            
+            # Удаляем файл
+            try:
+                file_url = str(document.file)
+                media_root = getattr(settings, 'MEDIA_ROOT', 'media')
+                media_url = getattr(settings, 'MEDIA_URL', '/media/')
+                if file_url.startswith(media_url):
+                    rel = file_url[len(media_url):]
+                elif '/media/' in file_url:
+                    rel = file_url.split('/media/', 1)[1]
+                else:
+                    rel = file_url.lstrip('/')
+                file_path = os.path.join(media_root, rel)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except Exception as e:
+                print(f"Ошибка удаления файла: {e}")
+            
+            document.delete()
+            messages.success(request, 'Документ успешно удален')
+        except Document.DoesNotExist:
+            messages.error(request, 'Документ не найден')
+        except Exception as e:
+            messages.error(request, f'Ошибка удаления документа: {e}')
+        
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
     
 
 

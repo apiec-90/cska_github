@@ -1,0 +1,308 @@
+{% extends "admin/change_form.html" %}
+{% block content %}
+<style>
+/* # Поднимаем модалку над оверлеем Jazzmin/Bootstrap */
+.modal { z-index: 2050 !important; }
+.modal-backdrop { z-index: 2000 !important; }
+</style>
+<div class="card w-100">
+  <div class="card-body">
+    <div class="row">
+      <!-- Левая колонка: Аватар и данные родителя -->
+      <div class="col-md-3">
+        <div class="text-center">
+          <!-- Вертикальный прямоугольник для аватара -->
+          <div class="position-relative mb-3" style="width:200px;height:250px;margin:0 auto;border:2px dashed #dee2e6;border-radius:8px;overflow:hidden;cursor:pointer;" onclick="document.getElementById('avatar-upload').click();">
+            {% if parent_avatar_url %}
+              <img src="{{ parent_avatar_url }}" alt="avatar" style="width:100%;height:100%;object-fit:cover;"/>
+            {% else %}
+              <div class="d-flex align-items-center justify-content-center h-100" style="background:#f8f9fa;">
+                <div class="text-center">
+                  <i class="fas fa-user" style="font-size:48px;color:#6c757d;"></i>
+                  <div class="mt-2 text-muted">Нажмите для загрузки</div>
+                </div>
+              </div>
+            {% endif %}
+            <!-- Скрытая форма загрузки -->
+            <form id="avatar-form" action="{% url 'admin:core_parent_upload_avatar' original.pk %}" method="post" enctype="multipart/form-data" style="display:none;">
+              {% csrf_token %}
+              <input type="file" id="avatar-upload" name="avatar" accept="image/*" onchange="this.form.submit();">
+            </form>
+          </div>
+          
+          <!-- Данные родителя -->
+          <h5 class="mb-2">
+            <span id="preview_name">{% if original.first_name or original.last_name %}{{ original.last_name|default:"" }} {{ original.first_name|default:"" }}{% elif original.user.first_name or original.user.last_name %}{{ original.user.last_name|default:"" }} {{ original.user.first_name|default:"" }}{% else %}{{ original.user.username }}{% endif %}</span>
+          </h5>
+          <div class="text-muted mb-2">
+            <div><strong>Телефон:</strong> <span id="preview_phone">{{ original.phone|default:"—" }}</span></div>
+            <div><strong>Дата рождения:</strong> <span id="preview_birth">{{ original.birth_date|date:"d.m.Y"|default:"—" }}</span></div>
+          </div>
+          <span class="badge {% if original.user.is_active %}badge-success{% else %}badge-secondary{% endif %}">
+            {% if original.user.is_active %}Активен{% else %}Неактивен{% endif %}
+          </span>
+        </div>
+      </div>
+      
+      <!-- Правая колонка: Дети, группы детей и документы -->
+      <div class="col-md-9">
+        <div class="row">
+          <!-- Блок детей -->
+          <div class="col-md-6">
+            <h6 class="mb-3"><strong>Дети</strong></h6>
+            {% if parent_children %}
+              {% for relation in parent_children %}
+                <div class="mb-3 p-3 border rounded">
+                  <div class="d-flex align-items-center mb-2">
+                    <div class="d-flex align-items-center justify-content-center rounded-circle me-3" style="width:40px;height:40px;background:#e9ecef;">
+                      <strong>{{ relation.athlete.first_name|default:relation.athlete.user.first_name|default:relation.athlete.user.username|first|upper }}</strong>
+                    </div>
+                    <div class="flex-fill">
+                      <div class="fw-bold">
+                        {% if relation.athlete.first_name or relation.athlete.last_name %}
+                          {{ relation.athlete.last_name|default:"" }} {{ relation.athlete.first_name|default:"" }}
+                        {% elif relation.athlete.user.first_name or relation.athlete.user.last_name %}
+                          {{ relation.athlete.user.last_name|default:"" }} {{ relation.athlete.user.first_name|default:"" }}
+                        {% else %}
+                          {{ relation.athlete.user.username }}
+                        {% endif %}
+                      </div>
+                      {% if relation.athlete.phone %}
+                        <small class="text-muted">{{ relation.athlete.phone }}</small>
+                      {% endif %}
+                      {% if relation.athlete.birth_date %}
+                        <br><small class="text-muted">📅 {{ relation.athlete.birth_date|date:"d.m.Y" }}</small>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            {% else %}
+              <em>Детей нет</em>
+            {% endif %}
+          </div>
+          
+          <!-- Блок групп детей -->
+          <div class="col-md-6">
+            <h6 class="mb-3"><strong>Группы детей</strong></h6>
+            {% if parent_children %}
+              {% for relation in parent_children %}
+                {% for group_relation in relation.athlete.athletetraininggroup_set.all %}
+                  <div class="mb-3 p-3 border rounded">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                      <h6 class="mb-0 text-primary">{{ group_relation.training_group.name }}</h6>
+                      <span class="badge {% if group_relation.training_group.is_active %}badge-success{% else %}badge-secondary{% endif %}">
+                        {% if group_relation.training_group.is_active %}Активна{% else %}Неактивна{% endif %}
+                      </span>
+                    </div>
+                    
+                    <div class="small text-muted">
+                      <div><strong>Ребенок:</strong> 
+                        {% if relation.athlete.first_name or relation.athlete.last_name %}
+                          {{ relation.athlete.last_name|default:"" }} {{ relation.athlete.first_name|default:"" }}
+                        {% elif relation.athlete.user.first_name or relation.athlete.user.last_name %}
+                          {{ relation.athlete.user.last_name|default:"" }} {{ relation.athlete.user.first_name|default:"" }}
+                        {% else %}
+                          {{ relation.athlete.user.username }}
+                        {% endif %}
+                      </div>
+                      <div><strong>Возраст:</strong> {{ group_relation.training_group.age_min }}-{{ group_relation.training_group.age_max }} лет</div>
+                      <div><strong>Тренер:</strong> 
+                        {% if group_relation.training_group.trainer %}
+                          {{ group_relation.training_group.trainer.user.last_name }} {{ group_relation.training_group.trainer.user.first_name }}
+                          {% if group_relation.training_group.trainer.phone %}
+                            <br><small class="text-muted">📞 {{ group_relation.training_group.trainer.phone }}</small>
+                          {% endif %}
+                        {% else %}
+                          Не назначен
+                        {% endif %}
+                      </div>
+                      <div><strong>Спортсменов:</strong> {{ group_relation.training_group.get_athletes_count }}/{{ group_relation.training_group.max_athletes }}</div>
+                      
+                      <div class="mt-2"><strong>Расписание:</strong></div>
+                      {% with schedules=group_relation.training_group.groupschedule_set.all %}
+                        {% if schedules %}
+                          {% for schedule in schedules %}
+                            <div class="ms-2">
+                              {% if schedule.weekday == 1 %}Понедельник{% elif schedule.weekday == 2 %}Вторник{% elif schedule.weekday == 3 %}Среда{% elif schedule.weekday == 4 %}Четверг{% elif schedule.weekday == 5 %}Пятница{% elif schedule.weekday == 6 %}Суббота{% elif schedule.weekday == 7 %}Воскресенье{% endif %}
+                              {{ schedule.start_time|time:"H:i" }}-{{ schedule.end_time|time:"H:i" }}
+                            </div>
+                          {% endfor %}
+                        {% else %}
+                          <div class="ms-2">Расписание не установлено</div>
+                        {% endif %}
+                      {% endwith %}
+                    </div>
+                  </div>
+                {% endfor %}
+              {% endfor %}
+            {% else %}
+              <em>Дети не привязаны к группам</em>
+            {% endif %}
+          </div>
+        </div>
+        
+        <!-- Блок документов -->
+        <div class="row mt-4">
+          <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h6 class="mb-0"><strong>Документы</strong></h6>
+              <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addDocumentModal" data-toggle="modal" data-target="#addDocumentModal">
+                <i class="fas fa-plus"></i> Добавить документ
+              </button>
+            </div>
+            
+            {% if parent_documents %}
+              <div class="table-responsive">
+                <table class="table table-sm">
+                  <thead>
+                    <tr>
+                      <th>Тип</th>
+                      <th>Комментарий</th>
+                      <th>Дата</th>
+                      <th width="120">Действия</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for d in parent_documents %}
+                      <tr>
+                        <td>{{ d.document_type.name|default:"Прочее" }}</td>
+                        <td>{{ d.comment|default:"—" }}</td>
+                        <td>{{ d.uploaded_at|date:"d.m.Y H:i" }}</td>
+                        <td>
+                          <div class="btn-group btn-group-sm" role="group">
+                            <a href="{{ d.file }}" target="_blank" class="btn btn-outline-primary" title="Открыть">
+                              <i class="fas fa-eye"></i>
+                            </a>
+                            <button type="button" class="btn btn-outline-danger" title="Удалить" 
+                                    data-document-id="{{ d.id }}" data-document-name="{{ d.document_type.name|default:"документ" }}">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="text-center py-4">
+                <i class="fas fa-file-alt text-muted" style="font-size:48px;"></i>
+                <p class="text-muted mt-2">Документы отсутствуют</p>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Модальное окно для добавления документа -->
+<div class="modal fade" id="addDocumentModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Добавить документ</h5>
+        <button type="button" class="close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <form action="{% url 'admin:core_parent_upload_document' original.pk %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="document_type" class="form-label">Тип документа:</label>
+            <select name="document_type" id="document_type" class="form-select">
+              <option value="">Прочее</option>
+              {% for t in parent_document_types %}
+                <option value="{{ t.id }}">{{ t.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="comment" class="form-label">Комментарий:</label>
+            <input type="text" name="comment" id="comment" class="form-control" placeholder="Описание документа">
+          </div>
+          <div class="mb-3">
+            <label for="document_file" class="form-label">Файл:</label>
+            <input type="file" name="document_file" id="document_file" class="form-control" required>
+            <div class="form-text">Поддерживаемые форматы: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, GIF</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal" data-bs-dismiss="modal">Отмена</button>
+          <button type="submit" class="btn btn-primary">Загрузить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Форма для удаления документа -->
+<form id="deleteDocumentForm" method="post" style="display:none;">
+  {% csrf_token %}
+  <input type="hidden" name="document_id" id="deleteDocumentId">
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Обработчик для кнопок удаления документов
+  document.querySelectorAll('[data-document-id]').forEach(function(button) {
+    button.addEventListener('click', function() {
+      var documentId = this.getAttribute('data-document-id');
+      var documentName = this.getAttribute('data-document-name');
+      
+      if (confirm('Вы уверены, что хотите удалить документ "' + documentName + '"?')) {
+        document.getElementById('deleteDocumentId').value = documentId;
+        document.getElementById('deleteDocumentForm').action = "{% url 'admin:core_parent_delete_document' original.pk %}";
+        document.getElementById('deleteDocumentForm').submit();
+      }
+    });
+  });
+
+  // Переносим модалку в <body>, чтобы избежать проблем со stacking context
+  try {
+    var modal = document.getElementById('addDocumentModal');
+    if (modal && modal.parentElement !== document.body) {
+      document.body.appendChild(modal);
+    }
+  } catch (e) {}
+});
+</script>
+
+<script>
+// Живое обновление превью из стандартной формы
+(function() {
+  function qs(sel){return document.querySelector(sel)}
+  function qsv(sel){var el=qs(sel);return el?el.value.trim():""}
+  function setText(id, text){var el=document.getElementById(id);if(el){el.textContent=text||"—"}}
+  function formatDateYmdToDmY(ymd){ if(!ymd) return "—"; var p=ymd.split('-'); if(p.length!==3) return ymd; return p[2]+'.'+p[1]+'.'+p[0]; }
+
+  function updatePreview(){
+    // Ищем поля ФИО в модели Parent (приоритет) или User
+    var first = qsv('input[name="first_name"], input[name="user__first_name"], input[name="user-first_name"], #id_first_name');
+    var last = qsv('input[name="last_name"], input[name="user__last_name"], input[name="user-last_name"], #id_last_name');
+    var phone = qsv('input[name="phone"], #id_phone');
+    var birth = qsv('input[name="birth_date"], #id_birth_date');
+
+    setText('preview_name', (last+" "+first).trim());
+    setText('preview_phone', phone || '—');
+    setText('preview_birth', formatDateYmdToDmY(birth));
+  }
+
+  document.addEventListener('input', function(e){
+    if (e.target && (e.target.name||'').match(/first_name|last_name|phone|birth_date/)) {
+      updatePreview();
+    }
+  });
+  document.addEventListener('change', function(e){
+    if (e.target && (e.target.name||'').match(/birth_date/)) {
+      updatePreview();
+    }
+  });
+  document.addEventListener('DOMContentLoaded', updatePreview);
+})();
+</script>
+
+{{ block.super }}
+{% endblock %}
+
