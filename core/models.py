@@ -135,6 +135,8 @@ class Athlete(models.Model):
     # Новые поля ФИО на профиль спортсмена
     first_name = models.CharField(max_length=150, null=True, blank=True, verbose_name="Имя")
     last_name = models.CharField(max_length=150, null=True, blank=True, verbose_name="Фамилия")
+    # Аватар спортсмена
+    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True, verbose_name="Фото")
 
     class Meta:
         db_table = 'athlete'

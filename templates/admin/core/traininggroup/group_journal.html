@@ -1,0 +1,397 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+<style>
+  .journal-container {
+    padding: 20px;
+  }
+  
+  .journal-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  
+  .journal-table th,
+  .journal-table td {
+    padding: 12px 8px;
+    text-align: center;
+    border: 1px solid #e9ecef;
+    vertical-align: middle;
+  }
+  
+  .journal-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  
+  .journal-table th.athlete-column,
+  .journal-table td.athlete-column {
+    position: sticky;
+    left: 0;
+    background: white;
+    text-align: left;
+    min-width: 200px;
+    z-index: 5;
+    box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+  }
+  
+  .journal-table th.athlete-column {
+    background: #f8f9fa;
+    z-index: 15;
+  }
+  
+  .athlete-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .athlete-avatar-small {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #17a2b8;
+  }
+  
+  .athlete-avatar-placeholder-small {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+  }
+  
+  .athlete-name-link {
+    color: #2c3e50;
+    text-decoration: none;
+    font-weight: 500;
+  }
+  
+  .athlete-name-link:hover {
+    color: #17a2b8;
+    text-decoration: none;
+  }
+  
+  .session-header {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    min-width: 80px;
+    max-width: 100px;
+  }
+  
+  .session-date {
+    font-weight: 600;
+    color: #2c3e50;
+  }
+  
+  .session-time {
+    font-size: 12px;
+    color: #6c757d;
+    margin-top: 4px;
+  }
+  
+  .session-status {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-top: 4px;
+    display: inline-block;
+  }
+  
+  .session-closed {
+    background-color: #dc3545;
+    color: white;
+  }
+  
+  .session-open {
+    background-color: #28a745;
+    color: white;
+  }
+  
+  .session-today {
+    background-color: #ffc107 !important;
+    font-weight: bold;
+  }
+  
+  .attendance-cell {
+    width: 80px;
+  }
+  
+  .attendance-icon {
+    font-size: 20px;
+  }
+  
+  .present {
+    color: #28a745;
+  }
+  
+  .absent {
+    color: #dc3545;
+  }
+  
+  .muted {
+    opacity: 0.6;
+  }
+  
+  .today-form {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin: 20px 0;
+    border: 2px solid #ffc107;
+  }
+  
+  .today-form h3 {
+    color: #856404;
+    margin-bottom: 15px;
+  }
+  
+  .attendance-checkboxes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 10px;
+    margin: 15px 0;
+  }
+  
+  .checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    background: white;
+    border-radius: 4px;
+    border: 1px solid #e9ecef;
+  }
+  
+  .checkbox-item input[type="checkbox"] {
+    transform: scale(1.2);
+  }
+  
+  .checkbox-item label {
+    margin: 0;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  
+  .btn-submit {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .btn-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  }
+  
+  .stats-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 30px;
+  }
+  
+  .stats-card {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .stats-number {
+    font-size: 24px;
+    font-weight: bold;
+    color: #17a2b8;
+  }
+  
+  .stats-label {
+    color: #6c757d;
+    font-size: 12px;
+    margin-top: 5px;
+  }
+  
+  .no-sessions {
+    text-align: center;
+    padding: 40px;
+    color: #6c757d;
+  }
+  
+  .no-sessions i {
+    font-size: 48px;
+    margin-bottom: 20px;
+    opacity: 0.5;
+  }
+  
+  .table-container {
+    overflow-x: auto;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="journal-container">
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:core_traininggroup_changelist' %}">Тренировочные группы</a> &rsaquo;
+    <a href="{% url 'admin:core_traininggroup_change' group.pk %}">{{ group }}</a> &rsaquo;
+    Журнал посещаемости
+  </div>
+
+  <h1><i class="fas fa-clipboard-list"></i> {{ title }}</h1>
+  
+  <!-- Статистика -->
+  <div class="stats-summary">
+    <div class="stats-card">
+      <div class="stats-number">{{ athletes|length }}</div>
+      <div class="stats-label">Спортсменов</div>
+    </div>
+    <div class="stats-card">
+      <div class="stats-number">{{ sessions|length }}</div>
+      <div class="stats-label">Сессий в месяце</div>
+    </div>
+    <div class="stats-card">
+      <div class="stats-number">{{ today|date:"d.m.Y" }}</div>
+      <div class="stats-label">Сегодня</div>
+    </div>
+  </div>
+
+  {% if sessions %}
+    <!-- Форма для отметки сегодняшней посещаемости -->
+    {% if today_session and not today_session.is_closed %}
+      <div class="today-form">
+        <h3><i class="fas fa-calendar-check"></i> Отметка посещаемости за сегодня</h3>
+        <p><strong>Сессия:</strong> {{ today_session.date|date:"d.m.Y" }} в {{ today_session.start_time }}</p>
+        
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="session_id" value="{{ today_session.id }}">
+          
+          <div class="attendance-checkboxes">
+                          {% for athlete in athletes %}
+                <div class="checkbox-item">
+                  {% if athlete.avatar %}
+                    <img src="{{ athlete.avatar.url }}" alt="{{ athlete }}" class="athlete-avatar-small">
+                  {% else %}
+                    <div class="athlete-avatar-placeholder-small">
+                      {{ athlete.first_name.0|default:athlete.user.first_name.0|default:athlete.user.username.0 }}
+                    </div>
+                  {% endif %}
+                  <input type="checkbox" 
+                         name="present_athlete_id" 
+                         value="{{ athlete.id }}" 
+                         id="present_{{ athlete.id }}">
+                  <label for="present_{{ athlete.id }}">{{ athlete }}</label>
+                </div>
+              {% endfor %}
+          </div>
+          
+          <button type="submit" class="btn-submit">
+            <i class="fas fa-save"></i> Отметить посещаемость и закрыть сессию
+          </button>
+        </form>
+      </div>
+    {% elif today_session and today_session.is_closed %}
+      <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i> Сегодняшняя сессия уже закрыта. 
+        <a href="{% url 'admin:core_trainingsession_change' today_session.pk %}">Редактировать сессию</a>
+      </div>
+    {% else %}
+      <div class="alert alert-secondary">
+        <i class="fas fa-calendar-times"></i> На сегодня сессий не запланировано.
+      </div>
+    {% endif %}
+
+    <!-- Таблица журнала -->
+    <div class="table-container">
+      <table class="journal-table">
+        <thead>
+          <tr>
+            <th class="athlete-column">Спортсмен</th>
+            {% for session in sessions %}
+              <th class="session-header {% if session.date == today %}session-today{% endif %}">
+                <div class="session-date">{{ session.date|date:"d.m" }}</div>
+                <div class="session-time">{{ session.start_time }}</div>
+                <div class="session-status {% if session.is_closed %}session-closed{% else %}session-open{% endif %}">
+                  {% if session.is_closed %}закрыта{% else %}открыта{% endif %}
+                </div>
+              </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for athlete in athletes %}
+            <tr>
+              <td class="athlete-column">
+                <div class="athlete-info">
+                  {% if athlete.avatar %}
+                    <img src="{{ athlete.avatar.url }}" alt="{{ athlete }}" class="athlete-avatar-small">
+                  {% else %}
+                    <div class="athlete-avatar-placeholder-small">
+                      {{ athlete.first_name.0|default:athlete.user.first_name.0|default:athlete.user.username.0 }}
+                    </div>
+                  {% endif %}
+                  <a href="{% url 'admin:core_athlete_change' athlete.pk %}" class="athlete-name-link">
+                    {{ athlete }}
+                  </a>
+                </div>
+              </td>
+              {% for session in sessions %}
+                <td class="attendance-cell {% if session.date != today %}muted{% endif %}">
+                  <!-- Временно упрощаем отображение посещаемости -->
+                  {% if session.date <= today %}
+                    <i class="fas fa-question attendance-icon" title="Данные загружаются..." style="color: #6c757d;"></i>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="no-sessions">
+      <i class="fas fa-calendar-times"></i>
+      <h3>На этот месяц сессий не запланировано</h3>
+      <p>Создайте расписание для группы и сгенерируйте сессии</p>
+    </div>
+  {% endif %}
+
+  <div style="margin-top: 30px;">
+    <a href="{% url 'admin:core_traininggroup_change' group.pk %}" class="btn btn-secondary">
+      <i class="fas fa-arrow-left"></i> Назад к группе
+    </a>
+    <a href="{% url 'admin:core_traininggroup_info' group.pk %}" class="btn btn-info" style="margin-left: 10px;">
+      <i class="fas fa-users"></i> Информация о группе
+    </a>
+  </div>
+</div>
+
+{% endblock %}

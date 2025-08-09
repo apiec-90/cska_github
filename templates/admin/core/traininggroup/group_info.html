@@ -1,0 +1,285 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+<style>
+  .group-info {
+    padding: 20px;
+  }
+  
+  .athlete-card {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    margin: 10px 0;
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+  }
+  
+  .athlete-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+  
+  .athlete-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    margin-right: 20px;
+    object-fit: cover;
+    border: 3px solid #17a2b8;
+  }
+  
+  .athlete-avatar-placeholder {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    margin-right: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+  }
+  
+  .athlete-info {
+    flex: 1;
+  }
+  
+  .athlete-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: #2c3e50;
+    text-decoration: none;
+    margin-bottom: 5px;
+    display: block;
+  }
+  
+  .athlete-name:hover {
+    color: #17a2b8;
+    text-decoration: none;
+  }
+  
+  .athlete-details {
+    color: #6c757d;
+    font-size: 14px;
+  }
+  
+  .athlete-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .btn-remove {
+    background-color: #dc3545;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 14px;
+    transition: background-color 0.3s;
+  }
+  
+  .btn-remove:hover {
+    background-color: #c82333;
+    color: white;
+    text-decoration: none;
+  }
+  
+  .add-athlete-form {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    border: 1px solid #e9ecef;
+  }
+  
+  .add-athlete-form h3 {
+    color: #28a745;
+    margin-bottom: 15px;
+  }
+  
+  .form-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+  }
+  
+  .form-group {
+    flex: 1;
+    min-width: 200px;
+  }
+  
+  .form-control {
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  
+  .btn-add {
+    background-color: #28a745;
+    color: white;
+    padding: 8px 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  
+  .btn-add:hover {
+    background-color: #218838;
+  }
+  
+  .stats-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+  
+  .stats-card {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .stats-number {
+    font-size: 36px;
+    font-weight: bold;
+    color: #17a2b8;
+  }
+  
+  .stats-label {
+    color: #6c757d;
+    font-size: 14px;
+    margin-top: 5px;
+  }
+  
+  .empty-state {
+    text-align: center;
+    padding: 40px;
+    color: #6c757d;
+  }
+  
+  .empty-state i {
+    font-size: 48px;
+    margin-bottom: 20px;
+    opacity: 0.5;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="group-info">
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:core_traininggroup_changelist' %}">Тренировочные группы</a> &rsaquo;
+    <a href="{% url 'admin:core_traininggroup_change' group.pk %}">{{ group }}</a> &rsaquo;
+    Информация о группе
+  </div>
+
+  <h1><i class="fas fa-users"></i> {{ title }}</h1>
+  
+  <!-- Статистика группы -->
+  <div class="stats-cards">
+    <div class="stats-card">
+      <div class="stats-number">{{ athletes|length }}</div>
+      <div class="stats-label">Спортсменов в группе</div>
+    </div>
+    <div class="stats-card">
+      <div class="stats-number">{{ group.max_athletes }}</div>
+      <div class="stats-label">Максимум спортсменов</div>
+    </div>
+    <div class="stats-card">
+      <div class="stats-number">{{ group.age_min }}-{{ group.age_max }}</div>
+      <div class="stats-label">Возрастной диапазон</div>
+    </div>
+  </div>
+
+  <!-- Форма добавления спортсмена -->
+  <div class="add-athlete-form">
+    <h3><i class="fas fa-user-plus"></i> Добавить спортсмена в группу</h3>
+    <form method="post" action="{% url 'admin:core_traininggroup_add_athlete' group.pk %}">
+      {% csrf_token %}
+      <div class="form-row">
+        <div class="form-group">
+          <label for="athlete_id">Выберите спортсмена:</label>
+          <select name="athlete_id" id="athlete_id" class="form-control" required>
+            <option value="">-- Выберите спортсмена --</option>
+            {% for athlete in available_athletes %}
+              <option value="{{ athlete.id }}">{{ athlete }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn-add">
+          <i class="fas fa-plus"></i> Добавить
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Список спортсменов -->
+  <h2><i class="fas fa-list"></i> Состав группы</h2>
+  
+  {% if athletes %}
+    {% for athlete in athletes %}
+      <div class="athlete-card">
+        {% if athlete.avatar %}
+          <img src="{{ athlete.avatar.url }}" alt="{{ athlete }}" class="athlete-avatar">
+        {% else %}
+          <div class="athlete-avatar-placeholder">
+            {{ athlete.first_name.0|default:athlete.user.first_name.0|default:athlete.user.username.0 }}
+          </div>
+        {% endif %}
+        
+        <div class="athlete-info">
+          <a href="{% url 'admin:core_athlete_change' athlete.pk %}" class="athlete-name">
+            {{ athlete }}
+          </a>
+          <div class="athlete-details">
+            <i class="fas fa-calendar"></i> Дата рождения: {{ athlete.birth_date|date:"d.m.Y" }}
+            {% if athlete.phone %}
+              <br><i class="fas fa-phone"></i> Телефон: {{ athlete.phone }}
+            {% endif %}
+          </div>
+        </div>
+        
+        <div class="athlete-actions">
+          <a href="{% url 'admin:core_traininggroup_remove_athlete' group.pk athlete.pk %}" 
+             class="btn-remove"
+             onclick="return confirm('Вы уверены, что хотите удалить {{ athlete }} из группы?')">
+            <i class="fas fa-times"></i> Удалить
+          </a>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <i class="fas fa-users-slash"></i>
+      <h3>В группе пока нет спортсменов</h3>
+      <p>Добавьте спортсменов, используя форму выше</p>
+    </div>
+  {% endif %}
+
+  <div style="margin-top: 30px;">
+    <a href="{% url 'admin:core_traininggroup_change' group.pk %}" class="btn btn-secondary">
+      <i class="fas fa-arrow-left"></i> Назад к группе
+    </a>
+    <a href="{% url 'admin:core_traininggroup_journal' group.pk %}" class="btn btn-success" style="margin-left: 10px;">
+      <i class="fas fa-clipboard-list"></i> Журнал посещаемости
+    </a>
+  </div>
+</div>
+{% endblock %}

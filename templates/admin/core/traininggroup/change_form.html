@@ -1,0 +1,100 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+
+{% block content %}
+  {% if original %}
+    <div style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 5px;">
+      <h3 style="margin-bottom: 15px;">🎯 Управление группой</h3>
+      <div style="display: flex; gap: 10px;">
+        <a href="{% url 'admin:core_traininggroup_info' original.pk %}" class="btn btn-info" style="color: white; text-decoration: none; padding: 10px 16px; border-radius: 4px; background-color: #17a2b8;">
+          <i class="fas fa-users"></i> Информация о группе
+        </a>
+        <a href="{% url 'admin:core_traininggroup_journal' original.pk %}" class="btn btn-success" style="color: white; text-decoration: none; padding: 10px 16px; border-radius: 4px; background-color: #28a745;">
+          <i class="fas fa-clipboard-list"></i> Журнал посещаемости
+        </a>
+        <form method="post" action="{% url 'admin:core_traininggroup_generate_sessions' original.pk %}" style="display: inline;">
+          {% csrf_token %}
+          <input type="hidden" name="months" value="2">
+          <button type="submit" class="btn btn-warning" style="color: white; text-decoration: none; padding: 10px 16px; border-radius: 4px; background-color: #ffc107; border: none;" onclick="return confirm('Создать тренировочные сессии на 2 месяца вперед?')">
+            <i class="fas fa-calendar-plus"></i> Создать сессии (2 мес.)
+          </button>
+        </form>
+      </div>
+    </div>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}
+
+{% block object-tools-items %}
+  {{ block.super }}
+  {% if original %}
+    <li>
+      <a href="{% url 'admin:core_traininggroup_info' original.pk %}" class="btn btn-info" style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; background-color: #17a2b8; margin-right: 10px;">
+        <i class="fas fa-users"></i> Информация о группе
+      </a>
+    </li>
+    <li>
+      <a href="{% url 'admin:core_traininggroup_journal' original.pk %}" class="btn btn-success" style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; background-color: #28a745;">
+        <i class="fas fa-clipboard-list"></i> Журнал посещаемости
+      </a>
+    </li>
+  {% endif %}
+{% endblock %}
+
+{% block after_related_objects %}
+  {% if original and group_schedules %}
+    <div class="module" style="margin-top: 20px;">
+      <h2>📅 Расписание группы</h2>
+      <div class="results">
+        <table id="result_list" style="width: 100%;">
+          <thead>
+            <tr>
+              <th scope="col">День недели</th>
+              <th scope="col">Время начала</th>
+              <th scope="col">Время окончания</th>
+              <th scope="col">Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for schedule in group_schedules %}
+              <tr class="{% cycle 'row1' 'row2' %}">
+                <td>
+                  {% if schedule.weekday == 1 %}Понедельник
+                  {% elif schedule.weekday == 2 %}Вторник
+                  {% elif schedule.weekday == 3 %}Среда
+                  {% elif schedule.weekday == 4 %}Четверг
+                  {% elif schedule.weekday == 5 %}Пятница
+                  {% elif schedule.weekday == 6 %}Суббота
+                  {% elif schedule.weekday == 7 %}Воскресенье
+                  {% endif %}
+                </td>
+                <td>{{ schedule.start_time }}</td>
+                <td>{{ schedule.end_time }}</td>
+                <td>
+                  <a href="{% url 'admin:core_groupschedule_change' schedule.pk %}" title="Редактировать">
+                    <i class="fas fa-edit"></i>
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="module" style="margin-top: 10px;">
+        <a href="{% url 'admin:core_groupschedule_add' %}?training_group={{ original.pk }}" class="btn btn-primary" style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; background-color: #007cba;">
+          <i class="fas fa-plus"></i> Добавить расписание
+        </a>
+      </div>
+    </div>
+  {% elif original %}
+    <div class="module" style="margin-top: 20px;">
+      <h2>📅 Расписание группы</h2>
+      <p>Расписание для этой группы еще не создано.</p>
+      <div class="module" style="margin-top: 10px;">
+        <a href="{% url 'admin:core_groupschedule_add' %}?training_group={{ original.pk }}" class="btn btn-primary" style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; background-color: #007cba;">
+          <i class="fas fa-plus"></i> Создать расписание
+        </a>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

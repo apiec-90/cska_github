@@ -1,0 +1,15 @@
+<ul class="weekday-toggle-input">
+  {% for group, options, index in widget.optgroups %}
+    {% for option in options %}
+      <li>
+        <input type="checkbox"
+               name="{{ widget.name }}"
+               value="{{ option.value }}"
+               id="{{ option.attrs.id }}"
+               {% if option.selected %}checked{% endif %}>
+        <label for="{{ option.attrs.id }}">{{ option.label }}</label>
+      </li>
+    {% endfor %}
+  {% endfor %}
+</ul>
+
