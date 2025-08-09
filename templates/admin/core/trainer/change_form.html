@@ -14,184 +14,169 @@
           <!-- Вертикальный прямоугольник для аватара -->
           <div class="position-relative mb-3" style="width:200px;height:250px;margin:0 auto;border:2px dashed #dee2e6;border-radius:8px;overflow:hidden;cursor:pointer;" onclick="document.getElementById('avatar-upload').click();">
             {% if trainer_avatar_url %}
-              <img src="{{ trainer_avatar_url }}" alt="avatar" style="width:100%;height:100%;object-fit:cover;" class="img-fluid">
-              <div class="position-absolute" style="top:5px;right:5px;">
-                <span class="badge badge-success">✓</span>
-              </div>
+              <img src="/media/{{ trainer_avatar_url }}" alt="avatar" style="width:100%;height:100%;object-fit:cover;"/>
             {% else %}
-              <div class="d-flex align-items-center justify-content-center h-100 text-muted">
-                <div>
-                  <i class="fas fa-user fa-3x mb-2"></i>
-                  <br><small>Нажмите для загрузки фото</small>
+              <div class="d-flex align-items-center justify-content-center h-100" style="background:#f8f9fa;">
+                <div class="text-center">
+                  <i class="fas fa-user" style="font-size:48px;color:#6c757d;"></i>
+                  <div class="mt-2 text-muted">Нажмите для загрузки</div>
                 </div>
               </div>
             {% endif %}
+            <!-- Скрытая форма загрузки -->
+            <form id="avatar-form" action="{% url 'admin:core_trainer_upload_avatar' object_id=original.id %}" method="post" enctype="multipart/form-data" style="display:none;">
+              {% csrf_token %}
+              <input type="file" id="avatar-upload" name="avatar" accept="image/*" onchange="this.form.submit();">
+            </form>
           </div>
           
-          <!-- Форма загрузки аватара (скрытая) -->
-          <form method="post" enctype="multipart/form-data" action="{% url 'admin:core_trainer_upload_avatar' object_id=original.id %}" style="display:none;">
-            {% csrf_token %}
-            <input type="file" id="avatar-upload" name="avatar" accept="image/*" onchange="this.form.submit();">
-          </form>
-          
-          <!-- Отображение ФИО тренера -->
-          <h5 class="card-title">
-            <span id="display-full-name">
-              {% if original.first_name or original.last_name %}
-                {{ original.last_name }} {{ original.first_name }}
-              {% else %}
-                {{ original.user.last_name }} {{ original.user.first_name }}
-              {% endif %}
-            </span>
+          <!-- Данные тренера -->
+          <h5 class="mb-2">
+            <span id="preview_name">{% if original.first_name or original.last_name %}{{ original.last_name|default:"" }} {{ original.first_name|default:"" }}{% elif original.user.first_name or original.user.last_name %}{{ original.user.last_name|default:"" }} {{ original.user.first_name|default:"" }}{% else %}{{ original.user.username }}{% endif %}</span>
           </h5>
-          
-          <!-- Отображение телефона -->
-          <p class="text-muted mb-1">
-            <i class="fas fa-phone"></i> 
-            <span id="display-phone">{{ original.phone|default:"Не указан" }}</span>
-          </p>
-          
-          <!-- Отображение даты рождения -->
-          <p class="text-muted mb-1">
-            <i class="fas fa-birthday-cake"></i> 
-            {{ original.birth_date|date:"d.m.Y"|default:"Не указана" }}
-          </p>
-          
-          <!-- Статус пользователя -->
-          <p class="mb-0">
-            {% if original.user.is_active %}
-              <span class="badge badge-success">Активен</span>
-            {% else %}
-              <span class="badge badge-danger">Неактивен</span>
-            {% endif %}
-          </p>
+          <div class="text-muted mb-2">
+            <div><strong>Телефон:</strong> <span id="preview_phone">{{ original.phone|default:"—" }}</span></div>
+            <div><strong>Дата рождения:</strong> <span id="preview_birth">{{ original.birth_date|date:"d.m.Y"|default:"—" }}</span></div>
+          </div>
+          <span class="badge {% if original.user.is_active %}badge-success{% else %}badge-secondary{% endif %}">
+            {% if original.user.is_active %}Активен{% else %}Неактивен{% endif %}
+          </span>
         </div>
       </div>
       
       <!-- Правая колонка: Группы тренера и документы -->
       <div class="col-md-9">
-        <div class="row">
-          <!-- Блок с группами тренера -->
-          <div class="col-md-6">
-            <div class="card h-100">
-              <div class="card-header bg-primary text-white">
-                <h6 class="mb-0"><i class="fas fa-users"></i> Группы тренера</h6>
-              </div>
-              <div class="card-body" style="max-height: 300px; overflow-y: auto;">
-                {% if trainer_groups %}
-                  {% for group in trainer_groups %}
-                    <div class="border-bottom pb-2 mb-2">
-                      <strong>{{ group.name }}</strong>
-                      <br>
-                      <small class="text-muted">
-                        {% if group.is_active %}
-                          <span class="badge badge-success">Активна</span>
-                        {% else %}
-                          <span class="badge badge-secondary">Неактивна</span>
-                        {% endif %}
-                      </small>
-                      <br>
-                      <small class="text-muted">
-                        <i class="fas fa-calendar"></i> 
-                        Возраст: {{ group.age_min }}-{{ group.age_max }} лет
-                      </small>
-                      <br>
-                      <small class="text-muted">
-                        <i class="fas fa-user-friends"></i> 
-                        Спортсменов: {{ group.athletetraininggroup_set.count }}
-                      </small>
+        <!-- Блок групп тренера -->
+        <div class="mb-4">
+          <h6 class="mb-3"><strong>Группы тренера</strong></h6>
+          {% if trainer_groups %}
+            <div class="row">
+              {% for group in trainer_groups %}
+                <div class="{% if trainer_groups|length <= 2 %}col-md-6{% elif trainer_groups|length <= 4 %}col-md-6 col-lg-4{% else %}col-md-6 col-lg-4 col-xl-3{% endif %} mb-3">
+                  <div class="h-100 p-3 border rounded">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                      <h6 class="mb-0 text-primary">{{ group.name }}</h6>
+                      <span class="badge {% if group.is_active %}badge-success{% else %}badge-secondary{% endif %}">
+                        {% if group.is_active %}Активна{% else %}Неактивна{% endif %}
+                      </span>
                     </div>
-                  {% endfor %}
-                {% else %}
-                  <p class="text-muted">Тренер не привязан к группам</p>
-                {% endif %}
-              </div>
+                    
+                    <div class="small text-muted">
+                      <div><strong>Возраст:</strong> {{ group.age_min }}-{{ group.age_max }} лет</div>
+                      <div><strong>Спортсменов:</strong> {{ group.get_athletes_count }}/{{ group.max_athletes }}</div>
+                      
+                      <div class="mt-2"><strong>Расписание:</strong></div>
+                      {% with schedules=group.groupschedule_set.all %}
+                        {% if schedules %}
+                          {% for schedule in schedules %}
+                            <div class="ms-2">
+                              {% if schedule.weekday == 1 %}Пн{% elif schedule.weekday == 2 %}Вт{% elif schedule.weekday == 3 %}Ср{% elif schedule.weekday == 4 %}Чт{% elif schedule.weekday == 5 %}Пт{% elif schedule.weekday == 6 %}Сб{% elif schedule.weekday == 7 %}Вс{% endif %}
+                              {{ schedule.start_time|time:"H:i" }}-{{ schedule.end_time|time:"H:i" }}
+                            </div>
+                          {% endfor %}
+                        {% else %}
+                          <div class="ms-2">Расписание не установлено</div>
+                        {% endif %}
+                      {% endwith %}
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
             </div>
+          {% else %}
+            <div class="text-center py-4">
+              <i class="fas fa-users text-muted" style="font-size:48px;"></i>
+              <p class="text-muted mt-2">Тренер не привязан к группам</p>
+            </div>
+          {% endif %}
+        </div>
+        
+        <!-- Блок документов -->
+        <div class="mb-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0"><strong>Документы</strong></h6>
+            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addDocumentModal" data-toggle="modal" data-target="#addDocumentModal">
+              <i class="fas fa-plus"></i> Добавить документ
+            </button>
           </div>
           
-          <!-- Блок с документами -->
-          <div class="col-md-6">
-            <div class="card h-100">
-              <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-                <h6 class="mb-0"><i class="fas fa-file-alt"></i> Документы</h6>
-                <button type="button" class="btn btn-light btn-sm" data-toggle="modal" data-target="#uploadDocumentModal">
-                  <i class="fas fa-plus"></i> Добавить
-                </button>
-              </div>
-              <div class="card-body" style="max-height: 300px; overflow-y: auto;">
-                {% if trainer_documents %}
-                  {% for doc in trainer_documents %}
-                    <div class="border-bottom pb-2 mb-2 d-flex justify-content-between align-items-start">
-                      <div class="flex-grow-1">
-                        <strong>{{ doc.document_type.name }}</strong>
-                        <br>
-                        <small class="text-muted">
-                          <i class="fas fa-calendar"></i> {{ doc.uploaded_at|date:"d.m.Y H:i" }}
-                        </small>
-                        <br>
-                        <small class="text-muted">
-                          <i class="fas fa-user"></i> {{ doc.uploaded_by.username }}
-                        </small>
-                        {% if doc.comment %}
-                          <br>
-                          <small class="text-muted">{{ doc.comment }}</small>
-                        {% endif %}
-                      </div>
-                      <div class="btn-group btn-group-sm">
-                        <a href="/media/{{ doc.file }}" target="_blank" class="btn btn-outline-primary btn-sm">
-                          <i class="fas fa-eye"></i>
-                        </a>
-                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteDocument({{ doc.id }})">
-                          <i class="fas fa-trash"></i>
-                        </button>
-                      </div>
-                    </div>
+          {% if trainer_documents %}
+            <div class="table-responsive">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>Тип</th>
+                    <th>Комментарий</th>
+                    <th>Дата</th>
+                    <th width="120">Действия</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for d in trainer_documents %}
+                    <tr>
+                      <td>{{ d.document_type.name|default:"Прочее" }}</td>
+                      <td>{{ d.comment|default:"—" }}</td>
+                      <td>{{ d.uploaded_at|date:"d.m.Y H:i" }}</td>
+                      <td>
+                        <div class="btn-group btn-group-sm" role="group">
+                          <a href="{{ d.file }}" target="_blank" class="btn btn-outline-primary" title="Открыть">
+                            <i class="fas fa-eye"></i>
+                          </a>
+                          <button type="button" class="btn btn-outline-danger" title="Удалить" 
+                                  data-document-id="{{ d.id }}" data-document-name="{{ d.document_type.name|default:"документ" }}">
+                            <i class="fas fa-trash"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
                   {% endfor %}
-                {% else %}
-                  <p class="text-muted">Документы не загружены</p>
-                {% endif %}
-              </div>
+                </tbody>
+              </table>
             </div>
-          </div>
+          {% else %}
+            <div class="text-center py-4">
+              <i class="fas fa-file-alt text-muted" style="font-size:48px;"></i>
+              <p class="text-muted mt-2">Документы отсутствуют</p>
+            </div>
+          {% endif %}
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Модальное окно для загрузки документа -->
-<div class="modal fade" id="uploadDocumentModal" tabindex="-1" role="dialog">
-  <div class="modal-dialog" role="document">
+<!-- Модальное окно для добавления документа -->
+<div class="modal fade" id="addDocumentModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Загрузить документ</h5>
-        <button type="button" class="close" data-dismiss="modal">
-          <span>&times;</span>
-        </button>
+        <h5 class="modal-title">Добавить документ</h5>
+        <button type="button" class="close" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
       </div>
-      <form method="post" enctype="multipart/form-data" action="{% url 'admin:core_trainer_upload_document' object_id=original.id %}">
+      <form action="{% url 'admin:core_trainer_upload_document' object_id=original.id %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
         <div class="modal-body">
-          {% csrf_token %}
-          <div class="form-group">
-            <label for="document_type">Тип документа:</label>
-            <select class="form-control" id="document_type" name="document_type">
-              <option value="">Выберите тип документа</option>
-              {% for doc_type in document_types %}
-                <option value="{{ doc_type.id }}">{{ doc_type.name }}</option>
+          <div class="mb-3">
+            <label for="document_type" class="form-label">Тип документа:</label>
+            <select name="document_type" id="document_type" class="form-select">
+              <option value="">Прочее</option>
+              {% for t in trainer_document_types %}
+                <option value="{{ t.id }}">{{ t.name }}</option>
               {% endfor %}
             </select>
           </div>
-          <div class="form-group">
-            <label for="document">Файл:</label>
-            <input type="file" class="form-control-file" id="document" name="document" required>
+          <div class="mb-3">
+            <label for="comment" class="form-label">Комментарий:</label>
+            <input type="text" name="comment" id="comment" class="form-control" placeholder="Описание документа">
           </div>
-          <div class="form-group">
-            <label for="comment">Комментарий:</label>
-            <textarea class="form-control" id="comment" name="comment" rows="3" placeholder="Необязательный комментарий"></textarea>
+          <div class="mb-3">
+            <label for="document_file" class="form-label">Файл:</label>
+            <input type="file" name="document_file" id="document_file" class="form-control" required>
+            <div class="form-text">Поддерживаемые форматы: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, GIF</div>
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-secondary" data-dismiss="modal" data-bs-dismiss="modal">Отмена</button>
           <button type="submit" class="btn btn-primary">Загрузить</button>
         </div>
       </form>
@@ -199,49 +184,70 @@
   </div>
 </div>
 
-<!-- Скрытая форма для удаления документа -->
-<form id="deleteDocumentForm" method="post" action="{% url 'admin:core_trainer_delete_document' object_id=original.id %}" style="display: none;">
+<!-- Форма для удаления документа -->
+<form id="deleteDocumentForm" method="post" style="display:none;">
   {% csrf_token %}
-  <input type="hidden" id="deleteDocumentId" name="document_id">
+  <input type="hidden" name="document_id" id="deleteDocumentId">
 </form>
 
 <script>
-function deleteDocument(documentId) {
-  if (confirm('Вы уверены, что хотите удалить этот документ?')) {
-    document.getElementById('deleteDocumentId').value = documentId;
-    document.getElementById('deleteDocumentForm').submit();
-  }
-}
-
-// Обновление отображения имени при изменении полей
 document.addEventListener('DOMContentLoaded', function() {
-  const firstNameField = document.querySelector('input[name="first_name"]');
-  const lastNameField = document.querySelector('input[name="last_name"]');
-  const phoneField = document.querySelector('input[name="phone"]');
-  
-  function updateDisplay() {
-    // Обновляем ФИО
-    const firstName = firstNameField ? firstNameField.value : '';
-    const lastName = lastNameField ? lastNameField.value : '';
-    const fullName = (lastName + ' ' + firstName).trim();
-    
-    const displayName = document.getElementById('display-full-name');
-    if (displayName && fullName) {
-      displayName.textContent = fullName;
+  // Обработчик для кнопок удаления документов
+  document.querySelectorAll('[data-document-id]').forEach(function(button) {
+    button.addEventListener('click', function() {
+      var documentId = this.getAttribute('data-document-id');
+      var documentName = this.getAttribute('data-document-name');
+      
+      if (confirm('Вы уверены, что хотите удалить документ "' + documentName + '"?')) {
+        document.getElementById('deleteDocumentId').value = documentId;
+        document.getElementById('deleteDocumentForm').action = "{% url 'admin:core_trainer_delete_document' object_id=original.id %}";
+        document.getElementById('deleteDocumentForm').submit();
+      }
+    });
+  });
+
+  // Переносим модалку в <body>, чтобы избежать проблем со stacking context
+  try {
+    var modal = document.getElementById('addDocumentModal');
+    if (modal && modal.parentElement !== document.body) {
+      document.body.appendChild(modal);
     }
-    
-    // Обновляем телефон
-    const phone = phoneField ? phoneField.value : '';
-    const displayPhone = document.getElementById('display-phone');
-    if (displayPhone) {
-      displayPhone.textContent = phone || 'Не указан';
-    }
-  }
-  
-  if (firstNameField) firstNameField.addEventListener('input', updateDisplay);
-  if (lastNameField) lastNameField.addEventListener('input', updateDisplay);
-  if (phoneField) phoneField.addEventListener('input', updateDisplay);
+  } catch (e) {}
 });
+</script>
+
+<script>
+// Живое обновление превью из стандартной формы
+(function() {
+  function qs(sel){return document.querySelector(sel)}
+  function qsv(sel){var el=qs(sel);return el?el.value.trim():""}
+  function setText(id, text){var el=document.getElementById(id);if(el){el.textContent=text||"—"}}
+  function formatDateYmdToDmY(ymd){ if(!ymd) return "—"; var p=ymd.split('-'); if(p.length!==3) return ymd; return p[2]+'.'+p[1]+'.'+p[0]; }
+
+  function updatePreview(){
+    // Ищем поля ФИО в модели Trainer (приоритет) или User
+    var first = qsv('input[name="first_name"], input[name="user__first_name"], input[name="user-first_name"], #id_first_name');
+    var last = qsv('input[name="last_name"], input[name="user__last_name"], input[name="user-last_name"], #id_last_name');
+    var phone = qsv('input[name="phone"], #id_phone');
+    var birth = qsv('input[name="birth_date"], #id_birth_date');
+
+    setText('preview_name', (last+" "+first).trim());
+    setText('preview_phone', phone || '—');
+    setText('preview_birth', formatDateYmdToDmY(birth));
+  }
+
+  document.addEventListener('input', function(e){
+    if (e.target && (e.target.name||'').match(/first_name|last_name|phone|birth_date/)) {
+      updatePreview();
+    }
+  });
+  document.addEventListener('change', function(e){
+    if (e.target && (e.target.name||'').match(/birth_date/)) {
+      updatePreview();
+    }
+  });
+  document.addEventListener('DOMContentLoaded', updatePreview);
+})();
 </script>
 
 {{ block.super }}

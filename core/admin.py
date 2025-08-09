@@ -167,19 +167,75 @@ class TrainerAdmin(admin.ModelAdmin):
         return trainer_urls + urls
 
     def upload_avatar(self, request, object_id):
-        """Загрузка аватара тренера (пока не реализовано - нет поля avatar)"""
-        from django.shortcuts import get_object_or_404, redirect
-        from django.contrib import messages
-        trainer = get_object_or_404(Trainer, pk=object_id)
+        """Загрузка аватара тренера"""
+        if request.method != 'POST':
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
+        file_obj = request.FILES.get('avatar')
+        if not file_obj:
+            messages.error(request, 'Файл не выбран')
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
+        try:
+            trainer = Trainer.objects.get(pk=object_id)
+        except Trainer.DoesNotExist:
+            messages.error(request, 'Тренер не найден')
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
         
-        messages.error(request, 'Загрузка аватара для тренера пока не реализована.')
-        return redirect('admin:core_trainer_change', object_id=trainer.pk)
+        # Генерируем уникальное имя файла
+        file_extension = file_obj.name.split('.')[-1].lower()
+        allowed_extensions = ['jpg', 'jpeg', 'png', 'gif']
+        if file_extension not in allowed_extensions:
+            messages.error(request, 'Недопустимый формат файла. Разрешены: JPG, PNG, GIF')
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
+        
+        file_name = f"trainer_{trainer.id}_{uuid.uuid4().hex[:8]}.{file_extension}"
+        
+        # Сохраняем файл в MEDIA/avatars
+        upload_path = os.path.join(settings.MEDIA_ROOT, 'avatars')
+        os.makedirs(upload_path, exist_ok=True)
+        
+        file_path = os.path.join(upload_path, file_name)
+        with open(file_path, 'wb') as f:
+            for chunk in file_obj.chunks():
+                f.write(chunk)
+        
+        # Создаем запись в Document с типом "Аватар"
+        from django.contrib.contenttypes.models import ContentType
+        avatar_type, _ = DocumentType.objects.get_or_create(name='Аватар')
+        ct = ContentType.objects.get_for_model(Trainer)
+        
+        # Удаляем предыдущий аватар если есть
+        old_avatars = Document.objects.filter(
+            content_type=ct, 
+            object_id=trainer.id, 
+            document_type=avatar_type
+        )
+        for old_avatar in old_avatars:
+            # Удаляем старый файл
+            old_file_path = os.path.join(settings.MEDIA_ROOT, old_avatar.file)
+            if os.path.exists(old_file_path):
+                os.remove(old_file_path)
+            old_avatar.delete()
+        
+        # Создаем новую запись
+        Document.objects.create(
+            document_type=avatar_type,
+            content_type=ct,
+            object_id=trainer.id,
+            file=f'avatars/{file_name}',
+            file_type=file_obj.content_type,
+            file_size=file_obj.size,
+            uploaded_by=request.user,
+            comment='Загружен как аватар'
+        )
+        
+        messages.success(request, 'Аватар успешно загружен')
+        return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
 
     def upload_document(self, request, object_id):
         """Загрузка документа тренера"""
         trainer = get_object_or_404(Trainer, pk=object_id)
-        if request.method == 'POST' and request.FILES.get('document'):
-            file_obj = request.FILES['document']
+        if request.method == 'POST' and request.FILES.get('document_file'):
+            file_obj = request.FILES['document_file']
             comment = request.POST.get('comment', '')
             document_type_id = request.POST.get('document_type')
             
@@ -262,30 +318,50 @@ class TrainerAdmin(admin.ModelAdmin):
     def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
         """Переопределяем для добавления данных в шаблон"""
         from django.shortcuts import get_object_or_404
+        from django.contrib.contenttypes.models import ContentType
+        from core.models import Document, DocumentType
+        
         extra_context = extra_context or {}
+        documents = []
+        doc_types = DocumentType.objects.all().order_by('name')
+        avatar_url = None
+        trainer_groups = []
         
         if object_id:
-            trainer = get_object_or_404(Trainer, pk=object_id)
-            
-            # Аватар тренера (пока нет поля avatar в модели)
-            extra_context['trainer_avatar_url'] = None
-            
-            # Получаем группы тренера
-            groups = trainer.traininggroup_set.filter(is_active=True).select_related()
-            extra_context['trainer_groups'] = groups
-            
-            # Получаем документы тренера
-            from django.contrib.contenttypes.models import ContentType
-            from core.models import Document, DocumentType
-            
-            ct_trainer = ContentType.objects.get_for_model(Trainer)
-            documents = Document.objects.filter(
-                content_type=ct_trainer,
-                object_id=trainer.id
-            ).select_related('document_type', 'uploaded_by')
-            
-            extra_context['trainer_documents'] = documents
-            extra_context['document_types'] = DocumentType.objects.all()
+            try:
+                trainer = get_object_or_404(Trainer, pk=object_id)
+                
+                # Получаем группы тренера с дополнительной информацией
+                trainer_groups = trainer.traininggroup_set.prefetch_related(
+                    'groupschedule_set',
+                    'athletetraininggroup_set__athlete'
+                ).all()
+                
+                # Получаем документы тренера
+                ct_trainer = ContentType.objects.get_for_model(Trainer)
+                documents = Document.objects.filter(
+                    content_type=ct_trainer,
+                    object_id=trainer.id
+                ).select_related('document_type', 'uploaded_by').order_by('-uploaded_at')
+                
+                # Пробуем найти актуальный аватар из документов
+                try:
+                    avatar_type = DocumentType.objects.get(name='Аватар')
+                    avatar_doc = documents.filter(document_type=avatar_type).first()
+                    if avatar_doc:
+                        avatar_url = avatar_doc.file
+                except DocumentType.DoesNotExist:
+                    pass
+                
+            except Trainer.DoesNotExist:
+                pass
+        
+        extra_context.update({
+            'trainer_groups': trainer_groups,
+            'trainer_documents': documents,
+            'trainer_document_types': doc_types,
+            'trainer_avatar_url': avatar_url,
+        })
         
         return super().changeform_view(request, object_id, form_url, extra_context)
 
