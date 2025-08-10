@@ -20,3 +20,4 @@ def attendance_status(attendance_map, session_id, athlete_id):
     return attendance_map.get((session_id, athlete_id), None)
 
 
+

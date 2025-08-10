@@ -24,3 +24,4 @@ def lookup2(dictionary, session_id, athlete_id):
     except (ValueError, TypeError):
         return False
 
+

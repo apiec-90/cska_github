@@ -285,13 +285,13 @@ class AthleteProfileForm(forms.Form):
     last_name = forms.CharField(label="Фамилия", max_length=150)
     first_name = forms.CharField(label="Имя", max_length=150)
     birth_date = forms.DateField(label="Дата рождения", widget=forms.DateInput(attrs={'type': 'date'}))
-    phone = forms.CharField(label="Телефон", max_length=255, required=False)
+    phone = forms.CharField(label="Телефон", max_length=255, required=True)
 
 
 class ParentProfileForm(forms.Form):
     last_name = forms.CharField(label="Фамилия", max_length=150)
     first_name = forms.CharField(label="Имя", max_length=150)
-    phone = forms.CharField(label="Телефон", max_length=255, required=False)
+    phone = forms.CharField(label="Телефон", max_length=255, required=True)
 
 
 # ===== Новые формы для расширенного шага 4 (связи) =====

@@ -6,8 +6,10 @@ from django.urls import path, reverse
 from django.contrib import messages
 from django.db import transaction
 from django.conf import settings
+from django.utils import timezone
 import os
 import uuid
+from datetime import datetime
 from django.http import HttpResponseRedirect
 from django.contrib.admin.utils import unquote
 from django.utils.html import format_html, format_html_join
@@ -1794,7 +1796,9 @@ class Step3ProfileView(RegistrationAdminView):
                 Athlete.objects.create(
                     user=draft.user,
                     birth_date=form.cleaned_data['birth_date'],
-                    phone=form.cleaned_data.get('phone', '')
+                    phone=form.cleaned_data['phone'],  # Убираем .get() с дефолтом
+                    first_name=form.cleaned_data['first_name'],  # Сохраняем ФИО в профиль
+                    last_name=form.cleaned_data['last_name']
                 )
                 draft.current_step = 4
                 draft.save()
@@ -1808,7 +1812,9 @@ class Step3ProfileView(RegistrationAdminView):
                 # Создаем запись Parent с данными профиля
                 Parent.objects.create(
                     user=draft.user,
-                    phone=form.cleaned_data.get('phone', '')
+                    phone=form.cleaned_data['phone'],  # Убираем .get() с дефолтом
+                    first_name=form.cleaned_data['first_name'],  # Сохраняем ФИО в профиль
+                    last_name=form.cleaned_data['last_name']
                 )
                 draft.current_step = 4
                 draft.save()
@@ -1816,6 +1822,12 @@ class Step3ProfileView(RegistrationAdminView):
         elif draft.role == 'trainer':
             form = TrainerForm(request.POST)
             if form.is_valid():
+                # Сохраняем ФИО в User
+                draft.user.first_name = form.cleaned_data['first_name']
+                draft.user.last_name = form.cleaned_data['last_name']
+                draft.user.save()
+                
+                # Создаем профиль тренера
                 profile = form.save(commit=False)
                 profile.user = draft.user
                 profile.save()
@@ -1846,19 +1858,14 @@ class Step4ProfileView(RegistrationAdminView):
         if draft.role != 'staff':
             return HttpResponseRedirect(reverse('admin:register_step4_relations', args=[draft.id]))
 
-        if draft.role == 'trainer':
-            form = TrainerForm()
-        elif draft.role == 'parent':
-            form = ParentForm()
-        elif draft.role == 'athlete':
-            form = AthleteForm()
-        elif draft.role == 'staff':
+        if draft.role == 'staff':
             # На шаге 4 профиль без выбора роли/подроли
             from .forms import StaffRegisterProfileForm
             form = StaffRegisterProfileForm()
         else:
-            messages.error(request, 'Неизвестная роль')
-            return HttpResponseRedirect(reverse('admin:register_cancel'))
+            # Для не-staff ролей профили уже созданы на шаге 3
+            messages.error(request, f'Для роли {draft.get_role_display()} профиль уже создан на шаге 3')
+            return HttpResponseRedirect(reverse('admin:register_step4_relations', args=[draft.id]))
 
         return render(request, 'admin/core/registration/step4.html', {
             'form': form,
@@ -1877,18 +1884,13 @@ class Step4ProfileView(RegistrationAdminView):
         if draft.role != 'staff':
             return HttpResponseRedirect(reverse('admin:register_step4_relations', args=[draft.id]))
 
-        if draft.role == 'trainer':
-            form = TrainerForm(request.POST)
-        elif draft.role == 'parent':
-            form = ParentForm(request.POST)
-        elif draft.role == 'athlete':
-            form = AthleteForm(request.POST)
-        elif draft.role == 'staff':
+        if draft.role == 'staff':
             from .forms import StaffRegisterProfileForm
             form = StaffRegisterProfileForm(request.POST)
         else:
-            messages.error(request, 'Неизвестная роль')
-            return HttpResponseRedirect(reverse('admin:register_cancel'))
+            # Для не-staff ролей профили уже созданы на шаге 3
+            messages.error(request, f'Для роли {draft.get_role_display()} профиль уже создан на шаге 3')
+            return HttpResponseRedirect(reverse('admin:register_step4_relations', args=[draft.id]))
 
         if form.is_valid():
             profile = form.save(commit=False)
@@ -1971,7 +1973,20 @@ class Step4RelationsView(RegistrationAdminView):
         if draft.role == 'athlete':
             form = AthleteRelationsForm(request.POST)
             if form.is_valid():
-                athlete = Athlete.objects.get(user=draft.user)
+                # Проверяем существование профиля, если нет - создаем базовый
+                try:
+                    athlete = Athlete.objects.get(user=draft.user)
+                except Athlete.DoesNotExist:
+                    # Создаем базовый профиль спортсмена с временными данными
+                    athlete = Athlete.objects.create(
+                        user=draft.user,
+                        birth_date=timezone.now().date(),
+                        phone=f'athlete_{draft.user.id}_{timezone.now().strftime("%Y%m%d")}',
+                        first_name=draft.user.first_name or 'Имя',  # Берем из User или дефолт
+                        last_name=draft.user.last_name or 'Фамилия'
+                    )
+                    messages.warning(request, 'Создан базовый профиль спортсмена. Заполните данные позже.')
+                
                 groups = list(form.cleaned_data['groups'])
                 AthleteTrainingGroup.objects.filter(athlete=athlete).delete()
                 AthleteTrainingGroup.objects.bulk_create([
@@ -1984,7 +1999,19 @@ class Step4RelationsView(RegistrationAdminView):
         elif draft.role == 'parent':
             form = ParentRelationsForm(request.POST)
             if form.is_valid():
-                parent = Parent.objects.get(user=draft.user)
+                # Проверяем существование профиля, если нет - создаем базовый
+                try:
+                    parent = Parent.objects.get(user=draft.user)
+                except Parent.DoesNotExist:
+                    # Создаем базовый профиль родителя с временными данными
+                    parent = Parent.objects.create(
+                        user=draft.user,
+                        phone=f'parent_{draft.user.id}_{timezone.now().strftime("%Y%m%d")}',
+                        first_name=draft.user.first_name or 'Имя',  # Берем из User или дефолт
+                        last_name=draft.user.last_name or 'Фамилия'
+                    )
+                    messages.warning(request, 'Создан базовый профиль родителя. Заполните данные позже.')
+                
                 children = list(form.cleaned_data['children'])
                 AthleteParent.objects.filter(parent=parent).delete()
                 AthleteParent.objects.bulk_create([
@@ -1997,7 +2024,20 @@ class Step4RelationsView(RegistrationAdminView):
         elif draft.role == 'trainer':
             form = TrainerRelationsForm(request.POST)
             if form.is_valid():
-                trainer = Trainer.objects.get(user=draft.user)
+                # Проверяем существование профиля, если нет - создаем базовый
+                try:
+                    trainer = Trainer.objects.get(user=draft.user)
+                except Trainer.DoesNotExist:
+                    # Создаем базовый профиль тренера с временными данными
+                    trainer = Trainer.objects.create(
+                        user=draft.user,
+                        birth_date=timezone.now().date(),
+                        phone=f'trainer_{draft.user.id}_{timezone.now().strftime("%Y%m%d")}',
+                        first_name=draft.user.first_name or 'Имя',  # Берем из User или дефолт
+                        last_name=draft.user.last_name or 'Фамилия'
+                    )
+                    messages.warning(request, 'Создан базовый профиль тренера. Заполните данные позже.')
+                
                 groups = list(form.cleaned_data['groups'])
                 # # выбираем только свободные группы и назначаем текущего тренера
                 for g in groups:
