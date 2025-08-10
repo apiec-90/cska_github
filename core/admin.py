@@ -1176,7 +1176,7 @@ class AthleteAdmin(admin.ModelAdmin):
 
 @admin.register(TrainingGroup)
 class TrainingGroupAdmin(admin.ModelAdmin):
-    list_display = ('name', 'age_min', 'age_max', 'trainer', 'get_athletes_count', 'get_parents_count', 'is_active', 'is_archived')
+    list_display = ('name', 'age_min', 'age_max', 'trainer', 'get_weekdays_display', 'get_athletes_count', 'get_parents_count', 'is_active', 'is_archived')
     list_filter = ('is_active', 'is_archived', 'age_min', 'age_max')
     search_fields = ('name', 'trainer__user__first_name', 'trainer__user__last_name')
     ordering = ('name',)
@@ -1221,7 +1221,7 @@ class TrainingGroupAdmin(admin.ModelAdmin):
         
         context = {
             **self.admin_site.each_context(request),
-            "title": f"Информация о группе: {group}",
+            "title": f"Список группы: {group}",
             "group": group,
             "athletes": athletes,
             "available_athletes": available_athletes,
@@ -1430,110 +1430,147 @@ class TrainingGroupAdmin(admin.ModelAdmin):
                 pass
         
         return super().changeform_view(request, object_id, form_url, extra_context)
-
-@admin.register(AthleteTrainingGroup)
-class AthleteTrainingGroupAdmin(admin.ModelAdmin):
-    list_display = ('athlete', 'training_group')
-    list_filter = ('training_group',)
-    search_fields = ('athlete__user__first_name', 'athlete__user__last_name', 'training_group__name')
-    ordering = ('athlete__user__last_name', 'training_group__name')
-
-@admin.register(AthleteParent)
-class AthleteParentAdmin(admin.ModelAdmin):
-    list_display = ('athlete', 'parent')
-    list_filter = ('parent',)
-    search_fields = ('athlete__user__first_name', 'athlete__user__last_name', 'parent__user__first_name', 'parent__user__last_name')
-    ordering = ('athlete__user__last_name', 'parent__user__last_name')
-
-@admin.register(GroupSchedule)
-class GroupScheduleAdmin(admin.ModelAdmin):
-    form = GroupScheduleForm
-    list_display = ('training_group', 'get_weekday_display', 'start_time', 'end_time')
-    list_filter = ('training_group', 'weekday')
-    search_fields = ('training_group__name',)
-    ordering = ('training_group__name', 'weekday', 'start_time')
     
-    def get_form(self, request, obj=None, **kwargs):
-        """Переопределяем для предзаполнения группы из GET параметров"""
-        form = super().get_form(request, obj, **kwargs)
+    def get_weekdays_display(self, obj):
+        """Отображение дней недели группы в компактном виде"""
+        from django.utils.html import format_html
         
-        # Если создаем новую запись и есть параметр training_group в GET
-        if not obj and 'training_group' in request.GET:
-            try:
-                training_group_id = int(request.GET['training_group'])
-                training_group = TrainingGroup.objects.get(pk=training_group_id)
-                form.base_fields['training_group'].initial = training_group
-            except (ValueError, TrainingGroup.DoesNotExist):
-                pass
+        # Получаем расписание группы
+        schedules = GroupSchedule.objects.filter(training_group=obj).order_by('weekday')
         
-        return form
-    
-    def save_model(self, request, obj, form, change):
-        """Переопределяем сохранение модели для работы с множественными днями"""
-        # Вызываем метод save формы, который обрабатывает множественные дни
-        form.save()
-    
-    def get_weekday_display(self, obj):
-        """Отображение дня недели с цветной меткой"""
-        weekday_names = {
-            1: ('Понедельник', '#2196F3'),
-            2: ('Вторник', '#4CAF50'), 
-            3: ('Среда', '#FF9800'),
-            4: ('Четверг', '#9C27B0'),
-            5: ('Пятница', '#F44336'),
-            6: ('Суббота', '#607D8B'),
-            7: ('Воскресенье', '#795548')
+        if not schedules.exists():
+            return format_html('<span style="color: #999;">Нет расписания</span>')
+        
+        # Словарь дней недели с сокращениями и цветами
+        weekday_short = {
+            1: ('Пн', '#2196F3'),
+            2: ('Вт', '#4CAF50'), 
+            3: ('Ср', '#FF9800'),
+            4: ('Чт', '#9C27B0'),
+            5: ('Пт', '#F44336'),
+            6: ('Сб', '#607D8B'),
+            7: ('Вс', '#795548')
         }
-        name, color = weekday_names.get(obj.weekday, (f'День {obj.weekday}', '#666'))
-        return format_html(
-            '<span style="display: inline-block; width: 12px; height: 12px; background-color: {}; border-radius: 50%; margin-right: 8px;"></span>{}',
-            color, name
-        )
-    get_weekday_display.short_description = 'День недели'
-    
-    def response_add(self, request, obj, post_url_override=None):
-        """Кастомное сообщение после добавления"""
-        # Получаем данные из POST запроса
-        if request.method == 'POST':
-            form = self.get_form(request)(request.POST)
-            if form.is_valid():
-                training_group = form.cleaned_data.get('training_group')
-                weekdays = form.cleaned_data.get('weekdays', [])
-                start_time = form.cleaned_data.get('start_time')
-                
-                if training_group and weekdays:
-                    count = len(weekdays)
-                    if count > 1:
-                        messages.success(
-                            request, 
-                            f'Успешно создано расписание для {count} дней недели для группы "{training_group}"'
-                        )
-                    else:
-                        messages.success(
-                            request, 
-                            f'Успешно создано расписание для группы "{training_group}"'
-                        )
         
-        return super().response_add(request, obj, post_url_override)
-    
-    def response_change(self, request, obj):
-        """Кастомное сообщение после изменения"""
-        # Получаем данные из POST запроса
-        if request.method == 'POST':
-            form = self.get_form(request, obj)(request.POST, instance=obj)
-            if form.is_valid():
-                training_group = form.cleaned_data.get('training_group')
-                weekdays = form.cleaned_data.get('weekdays', [])
-                start_time = form.cleaned_data.get('start_time')
-                
-                if training_group and weekdays:
-                    count = len(weekdays)
-                    messages.success(
-                        request, 
-                        f'Расписание обновлено. Активно расписаний: {count} для группы "{training_group}"'
-                    )
+        # Формируем HTML для отображения дней
+        days_html = []
+        for schedule in schedules:
+            short_name, color = weekday_short.get(schedule.weekday, (f'Д{schedule.weekday}', '#666'))
+            days_html.append(
+                f'<span style="display: inline-block; width: 20px; height: 20px; '
+                f'background-color: {color}; color: white; border-radius: 3px; '
+                f'text-align: center; line-height: 20px; font-size: 10px; '
+                f'margin: 1px; font-weight: bold;">{short_name}</span>'
+            )
         
-        return super().response_change(request, obj)
+        return format_html(''.join(days_html))
+    get_weekdays_display.short_description = 'Дни недели'
+
+# Убираем AthleteTrainingGroup из основного меню админки, но оставляем для inline в филдсетах
+# @admin.register(AthleteTrainingGroup)
+# class AthleteTrainingGroupAdmin(admin.ModelAdmin):
+#     list_display = ('athlete', 'training_group')
+#     list_filter = ('training_group',)
+#     search_fields = ('athlete__user__first_name', 'athlete__user__last_name', 'training_group__name')
+#     ordering = ('athlete__user__last_name', 'training_group__name')
+
+# Убираем AthleteParent из основного меню админки, но оставляем для inline в филдсетах
+# @admin.register(AthleteParent)
+# class AthleteParentAdmin(admin.ModelAdmin):
+#     list_display = ('athlete', 'parent')
+#     list_filter = ('parent',)
+#     search_fields = ('athlete__user__first_name', 'athlete__user__last_name', 'parent__user__first_name', 'parent__user__last_name')
+#     ordering = ('athlete__user__last_name', 'parent__user__last_name)
+
+# Убираем GroupSchedule из основного меню админки, но оставляем для inline в филдсетах
+# class GroupScheduleAdmin(admin.ModelAdmin):
+#     form = GroupScheduleForm
+#     list_display = ('training_group', 'get_weekday_display', 'start_time', 'end_time')
+#     list_filter = ('training_group', 'weekday')
+#     search_fields = ('training_group__name',)
+#     ordering = ('training_group__name', 'weekday', 'start_time')
+#     
+#     def get_form(self, request, obj=None, **kwargs):
+#         """Переопределяем для предзаполнения группы из GET параметров"""
+#         form = super().get_form(request, obj, **kwargs)
+#         
+#         # Если создаем новую запись и есть параметр training_group в GET
+#         if not obj and 'training_group' in request.GET:
+#             try:
+#                 training_group_id = int(request.GET['training_group'])
+#                 training_group = TrainingGroup.objects.get(pk=training_group_id)
+#                 form.base_fields['training_group'].initial = training_group
+#             except (ValueError, TrainingGroup.DoesNotExist):
+#                 pass
+#         
+#         return form
+#     
+#     def save_model(self, request, obj, form, change):
+#         """Переопределяем сохранение модели для работы с множественными днями"""
+#         # Вызываем метод save формы, который обрабатывает множественные дни
+#         form.save()
+#     
+#     def get_weekday_display(self, obj):
+#         """Отображение дня недели с цветной меткой"""
+#         weekday_names = {
+#             1: ('Понедельник', '#2196F3'),
+#             2: ('Вторник', '#4CAF50'), 
+#             3: ('Среда', '#FF9800'),
+#             4: ('Четверг', '#9C27B0'),
+#             5: ('Пятница', '#F44336'),
+#             6: ('Суббота', '#607D8B'),
+#             7: ('Воскресенье', '#795548')
+#         }
+#         name, color = weekday_names.get(obj.weekday, (f'День {obj.weekday}', '#666'))
+#         return format_html(
+#             '<span style="display: inline-block; width: 12px; height: 12px; background-color: {}; border-radius: 50%; margin-right: 8px;"></span>{}',
+#             color, name
+#         )
+#     get_weekday_display.short_description = 'День недели'
+#     
+#     def response_add(self, request, obj, post_url_override=None):
+#         """Кастомное сообщение после добавления"""
+#         # Получаем данные из POST запроса
+#         if request.method == 'POST':
+#             form = self.get_form(request)(request.POST)
+#             if form.is_valid():
+#                 training_group = form.cleaned_data.get('training_group')
+#                 weekdays = form.cleaned_data.get('weekdays', [])
+#                 start_time = form.cleaned_data.get('start_time')
+#         
+#                 if training_group and weekdays:
+#                     count = len(weekdays)
+#                     if count > 1:
+#                         messages.success(
+#                             request, 
+#                             f'Успешно создано расписание для {count} дней недели для группы "{training_group}"'
+#                         )
+#                     else:
+#                         messages.success(
+#                             request, 
+#                             f'Успешно создано расписание для группы "{training_group}"'
+#                         )
+#         
+#         return super().response_add(request, obj, post_url_override)
+#     
+#     def response_change(self, request, obj):
+#         """Кастомное сообщение после изменения"""
+#         # Получаем данные из POST запроса
+#         if request.method == 'POST':
+#             form = self.get_form(request, obj)(request.POST, instance=obj)
+#             if form.is_valid():
+#                 training_group = form.cleaned_data.get('training_group')
+#                 weekdays = form.cleaned_data.get('weekdays', [])
+#                 start_time = form.cleaned_data.get('start_time')
+#                 
+#                 if training_group and weekdays:
+#                     count = len(weekdays)
+#                     messages.success(
+#                         request, 
+#                         f'Расписание обновлено. Активно расписаний: {count} для группы "{training_group}"'
+#                         )
+#         
+#         return super().response_change(request, obj)
 
 # Inline для записей посещаемости в сессии
 class AttendanceRecordInline(admin.TabularInline):

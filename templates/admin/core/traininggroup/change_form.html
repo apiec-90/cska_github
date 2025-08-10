@@ -7,7 +7,7 @@
       <h3 style="margin-bottom: 15px;">🎯 Управление группой</h3>
       <div style="display: flex; gap: 10px;">
         <a href="{% url 'admin:core_traininggroup_info' original.pk %}" class="btn btn-info" style="color: white; text-decoration: none; padding: 10px 16px; border-radius: 4px; background-color: #17a2b8;">
-          <i class="fas fa-users"></i> Информация о группе
+          <i class="fas fa-users"></i> Список группы
         </a>
         <a href="{% url 'admin:core_traininggroup_journal' original.pk %}" class="btn btn-success" style="color: white; text-decoration: none; padding: 10px 16px; border-radius: 4px; background-color: #28a745;">
           <i class="fas fa-clipboard-list"></i> Журнал посещаемости
@@ -30,7 +30,7 @@
   {% if original %}
     <li>
       <a href="{% url 'admin:core_traininggroup_info' original.pk %}" class="btn btn-info" style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; background-color: #17a2b8; margin-right: 10px;">
-        <i class="fas fa-users"></i> Информация о группе
+        <i class="fas fa-users"></i> Список группы
       </a>
     </li>
     <li>
@@ -71,9 +71,7 @@
                 <td>{{ schedule.start_time }}</td>
                 <td>{{ schedule.end_time }}</td>
                 <td>
-                  <a href="{% url 'admin:core_groupschedule_change' schedule.pk %}" title="Редактировать">
-                    <i class="fas fa-edit"></i>
-                  </a>
+                  <span style="color: #666;">Расписание управляется через админку группы</span>
                 </td>
               </tr>
             {% endfor %}
@@ -81,9 +79,7 @@
         </table>
       </div>
       <div class="module" style="margin-top: 10px;">
-        <a href="{% url 'admin:core_groupschedule_add' %}?training_group={{ original.pk }}" class="btn btn-primary" style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; background-color: #007cba;">
-          <i class="fas fa-plus"></i> Добавить расписание
-        </a>
+        <p style="color: #666; font-style: italic;">Расписание управляется через админку группы</p>
       </div>
     </div>
   {% elif original %}
@@ -91,9 +87,7 @@
       <h2>📅 Расписание группы</h2>
       <p>Расписание для этой группы еще не создано.</p>
       <div class="module" style="margin-top: 10px;">
-        <a href="{% url 'admin:core_groupschedule_add' %}?training_group={{ original.pk }}" class="btn btn-primary" style="color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px; background-color: #007cba;">
-          <i class="fas fa-plus"></i> Создать расписание
-        </a>
+        <p style="color: #666; font-style: italic;">Расписание управляется через админку группы</p>
       </div>
     </div>
   {% endif %}
