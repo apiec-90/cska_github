@@ -1,0 +1,13 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h1>{{ title }}</h1>
+<p><a class="button" href="{% url 'admin:core_traininggroup_change' group.pk %}">Назад к группе</a></p>
+<p>Редактируйте элементы расписания на странице группы (инлайн «Расписание группы»). Будущие тренировки пересчитаются автоматически.</p>
+<ul>
+  {% for d, st, et in preview %}
+  <li>{{ d }} {{ st }}–{{ et }}</li>
+  {% empty %}
+  <li>В этом месяце по расписанию занятий нет</li>
+  {% endfor %}
+</ul>
+{% endblock %}

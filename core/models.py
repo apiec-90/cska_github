@@ -237,8 +237,21 @@ class GroupSchedule(models.Model):
         verbose_name_plural = "Расписания групп"
         unique_together = ('training_group', 'weekday', 'start_time')
 
+    def get_weekday_display(self):
+        """Возвращает название дня недели"""
+        weekday_names = {
+            1: 'Понедельник',
+            2: 'Вторник', 
+            3: 'Среда',
+            4: 'Четверг',
+            5: 'Пятница',
+            6: 'Суббота',
+            7: 'Воскресенье'
+        }
+        return weekday_names.get(self.weekday, f"День {self.weekday}")
+
     def __str__(self):
-        return f"{self.training_group} - День {self.weekday}"
+        return f"{self.training_group} - {self.get_weekday_display()}"
 
 class TrainingSession(models.Model):
     """Тренировочная сессия"""

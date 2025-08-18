@@ -1,0 +1,219 @@
+{% extends "admin/base_site.html" %}
+{% block extrastyle %}
+<style>
+  .wizard-container {
+    max-width: 800px;
+    margin: 20px auto;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    overflow: hidden;
+  }
+  .wizard-header {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    color: white;
+    padding: 20px;
+    text-align: center;
+  }
+  .wizard-steps {
+    display: flex;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+  }
+  .step {
+    flex: 1;
+    padding: 15px;
+    text-align: center;
+    border-right: 1px solid #dee2e6;
+  }
+  .step:last-child { border-right: none; }
+  .step.completed {
+    background: #28a745;
+    color: white;
+  }
+  .step.active {
+    background: #4CAF50;
+    color: white;
+    font-weight: bold;
+  }
+  .wizard-content {
+    padding: 30px;
+  }
+  .form-group {
+    margin-bottom: 20px;
+  }
+  .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #333;
+  }
+  .form-group input, .form-group select {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #e9ecef;
+    border-radius: 5px;
+    font-size: 14px;
+  }
+  .weekdays {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .weekday-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border: 2px solid #e9ecef;
+    border-radius: 5px;
+    transition: all 0.3s;
+  }
+  .weekday-item:hover {
+    border-color: #4CAF50;
+  }
+  .weekday-item input[type="checkbox"] {
+    width: auto;
+    margin-right: 8px;
+  }
+  .weekday-item.checked {
+    background: #e8f5e8;
+    border-color: #4CAF50;
+  }
+  .time-inputs {
+    display: flex;
+    gap: 15px;
+    align-items: end;
+  }
+  .time-inputs .form-group {
+    flex: 1;
+    margin-bottom: 0;
+  }
+  .wizard-actions {
+    padding: 20px 30px;
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    display: flex;
+    justify-content: space-between;
+  }
+  .btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .btn-primary {
+    background: #4CAF50;
+    color: white;
+  }
+  .btn-secondary {
+    background: #6c757d;
+    color: white;
+  }
+  .summary-box {
+    background: #e8f5e8;
+    border: 1px solid #4CAF50;
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 20px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wizard-container">
+  <div class="wizard-header">
+    <h1>📅 Расписание группы</h1>
+    <p>Настройте расписание тренировок</p>
+  </div>
+  
+  <div class="wizard-steps">
+    <div class="step completed">
+      <strong>Шаг 1</strong><br>
+      <small>Данные группы</small>
+    </div>
+    <div class="step active">
+      <strong>Шаг 2</strong><br>
+      <small>Расписание</small>
+    </div>
+    <div class="step">
+      <strong>Шаг 3</strong><br>
+      <small>Готово</small>
+    </div>
+  </div>
+  
+  <div class="wizard-content">
+    <div class="summary-box">
+      <h3>📝 Создаем группу: "{{ group_data.name }}"</h3>
+      <p><strong>Тренер:</strong> 
+        {% if group_data.trainer_id %}
+          {% for trainer in trainers %}
+            {% if trainer.id|stringformat:"s" == group_data.trainer_id %}
+              {{ trainer.user.last_name }} {{ trainer.user.first_name }}
+            {% endif %}
+          {% endfor %}
+        {% else %}
+          Не назначен
+        {% endif %}
+      </p>
+    </div>
+    
+    <h2>⏰ Настройка расписания</h2>
+    <p>Выберите дни недели и время проведения тренировок</p>
+    
+    <form method="post" id="schedule-form">
+      {% csrf_token %}
+      
+      <div class="form-group">
+        <label>Дни недели:</label>
+        <div class="weekdays">
+          {% for value, label in weekday_choices %}
+            <div class="weekday-item">
+              <input type="checkbox" name="weekdays" value="{{ value }}" 
+                     id="weekday_{{ value }}" onchange="toggleWeekday(this)">
+              <label for="weekday_{{ value }}">{{ label }}</label>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      
+      <div class="time-inputs">
+        <div class="form-group">
+          <label for="start_time">Время начала:</label>
+          <input type="time" id="start_time" name="start_time" required>
+        </div>
+        <div class="form-group">
+          <label for="end_time">Время окончания:</label>
+          <input type="time" id="end_time" name="end_time" required>
+        </div>
+      </div>
+    </form>
+  </div>
+  
+  <div class="wizard-actions">
+    <a href="{% url 'admin:core_traininggroup_create_wizard' %}" class="btn btn-secondary">
+      ← Назад
+    </a>
+    <input type="submit" class="btn btn-primary" value="Создать группу! 🎉" form="schedule-form">
+  </div>
+</div>
+
+<script>
+function toggleWeekday(checkbox) {
+  const item = checkbox.closest('.weekday-item');
+  if (checkbox.checked) {
+    item.classList.add('checked');
+  } else {
+    item.classList.remove('checked');
+  }
+}
+
+// Установка значений по умолчанию
+document.getElementById('start_time').value = '16:00';
+document.getElementById('end_time').value = '17:30';
+</script>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "admin/base_site.html" %}
+{% block extrastyle %}
+<style>
+  .tg-header{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:12px 0 16px}
+  .tg-header .meta{font-size:14px;opacity:.9}
+  .tg-actions{display:flex;gap:.5rem;flex-wrap:wrap}
+  .btn-badge{display:inline-flex;align-items:center;gap:.5rem}
+  .badge{display:inline-block;min-width:1.5em;padding:.1rem .45rem;border-radius:999px;font-size:12px;line-height:1;background:#2563eb;color:#fff}
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+<div class="tg-header">
+  <div>
+    <div class="meta"><strong>Группа:</strong> {{ header.name }}</div>
+    <div class="meta"><strong>Тренер:</strong> {{ header.trainer }}</div>
+    <div class="meta">
+      <strong>Дети:</strong> {{ header.children_count }} |
+      <strong>Элементов расписания:</strong> {{ header.schedule_count }} |
+      <strong>Ближайшая:</strong>
+      {% if header.next_session %} {{ header.next_session.date }} {{ header.next_session.start_time|default_if_none:"" }}{% else %}—{% endif %}
+    </div>
+  </div>
+  <div class="tg-actions">
+    <a class="button btn-badge" href="{{ header.urls.edit }}" style="background:#2196F3;color:white">✏️ Редактировать данные</a>
+    <a class="button btn-badge" href="{{ header.urls.children }}">👧🧒 Дети <span class="badge">{{ header.children_count }}</span></a>
+    <a class="button btn-badge" href="{{ header.urls.schedule }}">📅 Расписание</a>
+    <a class="button btn-badge" href="{{ header.urls.journal }}">✅ Журнал</a>
+  </div>
+</div>
+
+<p>Выберите вкладку выше: «Дети», «Расписание» или «Журнал».</p>
+{% endblock %}

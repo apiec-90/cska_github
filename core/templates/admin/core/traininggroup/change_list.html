@@ -1,0 +1,128 @@
+{% extends "admin/change_list.html" %}
+{% load i18n admin_urls static admin_list %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .group-stats {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 20px;
+        margin: 20px 0;
+    }
+    .stats-header {
+        font-size: 18px;
+        font-weight: bold;
+        color: #495057;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+    }
+    .stat-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 15px;
+        text-align: center;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .stat-number {
+        font-size: 28px;
+        font-weight: bold;
+        color: #007bff;
+        margin-bottom: 5px;
+    }
+    .stat-label {
+        color: #6c757d;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .quick-actions {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #dee2e6;
+    }
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .action-btn {
+        background: #007bff;
+        color: white;
+        padding: 8px 16px;
+        text-decoration: none;
+        border-radius: 4px;
+        font-size: 14px;
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    .action-btn:hover {
+        background: #0056b3;
+        color: white;
+        text-decoration: none;
+    }
+    .action-btn.secondary {
+        background: #6c757d;
+    }
+    .action-btn.secondary:hover {
+        background: #545b62;
+    }
+</style>
+{% endblock %}
+
+{% block content_title %}
+    <h1>🏃‍♂️ Тренировочные группы</h1>
+{% endblock %}
+
+{% block object-tools %}
+    {{ block.super }}
+{% endblock %}
+
+{% block content %}
+    <div class="group-stats">
+        <div class="stats-header">
+            📊 Общая статистика
+        </div>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">{{ total_groups }}</div>
+                <div class="stat-label">Всего групп</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ active_groups }}</div>
+                <div class="stat-label">Активных групп</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ archived_groups }}</div>
+                <div class="stat-label">Архивных групп</div>
+            </div>
+        </div>
+        
+        <div class="quick-actions">
+            <div class="stats-header">
+                ⚡ Быстрые действия
+            </div>
+            <div class="action-buttons">
+                <a href="{% url 'admin:core_attendancerecord_changelist' %}" class="action-btn">
+                    📝 Журнал посещаемости
+                </a>
+                <a href="{% url 'admin:core_trainer_changelist' %}" class="action-btn secondary">
+                    👨‍🏫 Тренеры
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    {{ block.super }}
+{% endblock %}
+

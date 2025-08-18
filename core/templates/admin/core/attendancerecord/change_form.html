@@ -1,0 +1,123 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify %}
+
+{% block extrahead %}
+  {{ block.super }}
+  {{ media }}
+{% endblock %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" type="text/css" href="{% static "admin/css/forms.css" %}">
+  <style>
+    .attendance-form {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .athlete-info {
+      background: #f9f9f9;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .athlete-avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-right: 15px;
+    }
+    .athlete-details {
+      display: flex;
+      align-items: center;
+    }
+    .session-info {
+      background: #e8f4f8;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .form-row {
+      margin-bottom: 15px;
+    }
+    .form-row label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .form-row input[type="checkbox"] {
+      transform: scale(1.2);
+      margin-left: 0;
+    }
+    .submit-row {
+      text-align: center;
+      margin-top: 30px;
+    }
+  </style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+  &rsaquo; <a href="{% url 'admin:core_attendancerecord_changelist' %}">{% trans 'Attendance Records' %}</a>
+  &rsaquo; {% if add %}{% blocktrans %}Add {{ name }}{% endblocktrans %}{% else %}{{ original|truncatewords:"18" }}{% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <form method="post" id="attendance_form" novalidate>
+    {% csrf_token %}
+    
+    <div class="attendance-form">
+      {% if original %}
+        <!-- Информация о спортсмене -->
+        <div class="athlete-info">
+          <div class="athlete-details">
+            {% if original.athlete.avatar %}
+              <img src="{{ original.athlete.avatar.url }}" alt="Avatar" class="athlete-avatar">
+            {% endif %}
+            <div>
+              <h3>{{ original.athlete }}</h3>
+              <p>Группа: {{ original.training_group.name }}</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Информация о тренировке -->
+        <div class="session-info">
+          <h4>Информация о тренировке</h4>
+          <p><strong>Дата:</strong> {{ original.session_date|date:"d.m.Y" }}</p>
+          <p><strong>Время:</strong> {{ original.session_start_time|time:"H:i" }} - {{ original.session_end_time|time:"H:i" }}</p>
+        </div>
+      {% endif %}
+      
+      <!-- Поля формы -->
+      <fieldset class="module aligned">
+        {% for field in adminform.form %}
+          <div class="form-row{% if field.errors %} errors{% endif %}">
+            {{ field.errors }}
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.help_text %}
+              <p class="help">{{ field.help_text|safe }}</p>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </fieldset>
+      
+      <!-- Кнопки -->
+      <div class="submit-row">
+        <input type="submit" value="{% trans 'Save' %}" class="default" name="_save">
+        {% if show_save_and_continue %}
+          <input type="submit" value="{% trans 'Save and continue editing' %}" name="_continue">
+        {% endif %}
+        {% if show_save_and_add_another %}
+          <input type="submit" value="{% trans 'Save and add another' %}" name="_addanother">
+        {% endif %}
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

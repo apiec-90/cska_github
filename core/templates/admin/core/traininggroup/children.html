@@ -1,0 +1,47 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h1>{{ title }}</h1>
+<p><a class="button" href="{% url 'admin:core_traininggroup_panel' group.pk %}">Назад к группе</a></p>
+
+<div style="margin-bottom:20px;">
+  <h3>Добавить спортсмена</h3>
+  <form method="post" style="margin-bottom:12px;">
+    {% csrf_token %}
+    <label>Выберите спортсмена:</label>
+    <select name="athlete_id" required>
+      <option value="">-- Выберите спортсмена --</option>
+      {% for athlete in available_athletes %}
+        <option value="{{ athlete.id }}">{{ athlete.last_name }} {{ athlete.first_name }} (ID: {{ athlete.id }})</option>
+      {% endfor %}
+    </select>
+    <button class="button">Добавить в группу</button>
+  </form>
+  
+  <p style="font-size:0.9em; color:#666;">
+    <strong>Доступно спортсменов:</strong> {{ available_athletes.count }}
+  </p>
+</div>
+
+<table class="adminlist">
+  <thead><tr><th>Спортсмен</th><th></th></tr></thead>
+  <tbody>
+  {% for a in members %}
+    <tr>
+      <td>
+        {% if a.avatar %}<img src="{{ a.avatar.url }}" style="width:28px;height:28px;border-radius:50%;vertical-align:middle;margin-right:6px;">{% endif %}
+        <a href="{% url 'admin:core_athlete_change' a.pk %}">{{ a.last_name }} {{ a.first_name }}</a>
+      </td>
+      <td>
+        <form method="post" style="display:inline">
+          {% csrf_token %}
+          <input type="hidden" name="remove_id" value="{{ a.id }}">
+          <button class="deletelink">Убрать</button>
+        </form>
+      </td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="2">Пока нет спортсменов</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

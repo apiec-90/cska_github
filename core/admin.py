@@ -7,9 +7,12 @@ from django.contrib import messages
 from django.db import transaction
 from django.conf import settings
 from django.utils import timezone
+from django.template.response import TemplateResponse
+from django.core.exceptions import PermissionDenied
+from django.forms import modelformset_factory
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.http import HttpResponseRedirect
 from django.contrib.admin.utils import unquote
 from django.utils.html import format_html, format_html_join
@@ -42,7 +45,8 @@ from .forms import (
     TrainerRelationsForm,
     GroupScheduleForm
 )
-from .utils import assign_groups_for_registration
+from . import utils
+from .utils.sessions import ensure_month_sessions_for_group, resync_future_sessions_for_group
 
 # Регистрируем стандартные Django модели
 admin.site.unregister(User)
@@ -56,8 +60,16 @@ class AthleteParentInline(admin.TabularInline):
     extra = 1
     verbose_name = "Родитель"
     verbose_name_plural = "Родители"
-    fields = ('parent',)
-    autocomplete_fields = ['parent']
+
+class AthleteTrainingGroupInline(admin.TabularInline):
+    """Inline для управления группами спортсмена"""
+    model = AthleteTrainingGroup
+    fk_name = 'athlete'
+    extra = 0
+    verbose_name = "Тренировочная группа"
+    verbose_name_plural = "Тренировочные группы"
+    fields = ('training_group',)
+    autocomplete_fields = ['training_group']
 
 class ParentAthleteInline(admin.TabularInline):
     """Inline для управления детьми родителя"""
@@ -818,8 +830,8 @@ class AthleteAdmin(admin.ModelAdmin):
     list_filter = ('is_archived', 'birth_date', 'user__is_active')
     search_fields = ('user__first_name', 'user__last_name', 'phone')
     ordering = ('user__last_name', 'user__first_name')
-    # # инлайны для управления связями с родителями
-    inlines = [AthleteParentInline]
+    # # инлайны для управления связями с родителями и группами
+    inlines = [AthleteParentInline, AthleteTrainingGroupInline]
     # # кастомный шаблон карточки спортсмена
     change_form_template = 'admin/core/athlete/change_form.html'
     
@@ -1174,297 +1186,8 @@ class AthleteAdmin(admin.ModelAdmin):
                 user.last_name = obj.last_name
             user.save(update_fields=['first_name', 'last_name'])
 
-@admin.register(TrainingGroup)
-class TrainingGroupAdmin(admin.ModelAdmin):
-    list_display = ('name', 'age_min', 'age_max', 'trainer', 'get_weekdays_display', 'get_athletes_count', 'get_parents_count', 'is_active', 'is_archived')
-    list_filter = ('is_active', 'is_archived', 'age_min', 'age_max')
-    search_fields = ('name', 'trainer__user__first_name', 'trainer__user__last_name')
-    ordering = ('name',)
-    
-    # Кастомный шаблон для кнопок в форме группы
-    change_form_template = "admin/core/traininggroup/change_form.html"
-    
-    def get_urls(self):
-        """Добавляем кастомные URL для группы"""
-        urls = super().get_urls()
-        custom_urls = [
-            path('<int:group_id>/info/', self.admin_site.admin_view(self.group_info_view),
-                 name='core_traininggroup_info'),
-            path('<int:group_id>/journal/', self.admin_site.admin_view(self.group_journal_view),
-                 name='core_traininggroup_journal'),
-            path('<int:group_id>/remove-athlete/<int:athlete_id>/', 
-                 self.admin_site.admin_view(self.remove_athlete_from_group),
-                 name='core_traininggroup_remove_athlete'),
-            path('<int:group_id>/add-athlete/', 
-                 self.admin_site.admin_view(self.add_athlete_to_group),
-                 name='core_traininggroup_add_athlete'),
-            path('<int:group_id>/generate-sessions/', 
-                 self.admin_site.admin_view(self.generate_sessions_for_group),
-                 name='core_traininggroup_generate_sessions'),
-        ]
-        return custom_urls + urls
-    
-    def group_info_view(self, request, group_id):
-        """Страница информации о группе"""
-        from django.template.response import TemplateResponse
-        from django.db import transaction
-        
-        group = get_object_or_404(TrainingGroup, pk=group_id)
-        # Получаем спортсменов через связанную модель AthleteTrainingGroup
-        athletes_relations = AthleteTrainingGroup.objects.filter(training_group=group).select_related('athlete__user')
-        athletes = [rel.athlete for rel in athletes_relations]
-        
-        # Получаем доступных спортсменов для добавления (не в этой группе)
-        available_athletes = Athlete.objects.exclude(
-            athletetraininggroup__training_group=group
-        ).filter(is_archived=False)
-        
-        context = {
-            **self.admin_site.each_context(request),
-            "title": f"Список группы: {group}",
-            "group": group,
-            "athletes": athletes,
-            "available_athletes": available_athletes,
-            "opts": self.model._meta,
-        }
-        return TemplateResponse(request, "admin/core/traininggroup/group_info.html", context)
-    
-    def group_journal_view(self, request, group_id):
-        """Страница журнала посещаемости"""
-        from django.template.response import TemplateResponse
-        from django.utils import timezone
-        from django.db import transaction
-        from datetime import timedelta
-        
-        group = get_object_or_404(TrainingGroup, pk=group_id)
-        today = timezone.localdate()
-        
-        # Получаем сессии за текущий месяц
-        first_day = today.replace(day=1)
-        if first_day.month == 12:
-            next_first = first_day.replace(year=first_day.year+1, month=1, day=1)
-        else:
-            next_first = first_day.replace(month=first_day.month+1, day=1)
-        
-        sessions = TrainingSession.objects.filter(
-            training_group=group, 
-            date__gte=first_day, 
-            date__lt=next_first
-        ).order_by("date", "start_time")
-        
-        # Получаем спортсменов группы
-        athletes_relations = AthleteTrainingGroup.objects.filter(training_group=group).select_related('athlete__user')
-        athletes = [rel.athlete for rel in athletes_relations]
-        
-        # Создаем словарь посещаемости (session_id, athlete_id) -> was_present
-        attendance_map = {}
-        for attendance in AttendanceRecord.objects.filter(session__in=sessions, athlete__in=athletes):
-            attendance_map[(attendance.session_id, attendance.athlete_id)] = attendance.was_present
-        
-        # Обработка POST - сохранение отметок за сегодня
-        if request.method == "POST":
-            session_id = request.POST.get("session_id")
-            if session_id:
-                session = get_object_or_404(TrainingSession, pk=session_id, training_group=group)
-                if session.date == today and not session.is_closed:
-                    present_ids = set(map(int, request.POST.getlist("present_athlete_id")))
-                    
-                    with transaction.atomic():
-                        # Обновляем записи посещаемости
-                        for athlete in athletes:
-                            is_present = athlete.id in present_ids
-                            attendance_record, created = AttendanceRecord.objects.get_or_create(
-                                session=session,
-                                athlete=athlete,
-                                defaults={
-                                    'was_present': is_present,
-                                    'marked_by': request.user.staff
-                                }
-                            )
-                            if not created:
-                                attendance_record.was_present = is_present
-                                attendance_record.marked_by = request.user.staff
-                                attendance_record.save()
-                        
-                        # Закрываем сессию
-                        session.is_closed = True
-                        session.save()
-                    
-                    messages.success(request, "Посещаемость сохранена. Сессия закрыта.")
-                    return redirect(request.path)
-                else:
-                    messages.error(request, "Нельзя отметить посещаемость для этой сессии.")
-        
-        # Находим сегодняшнюю сессию
-        today_session = sessions.filter(date=today).first()
-        
-        context = {
-            **self.admin_site.each_context(request),
-            "title": f"Журнал группы: {group}",
-            "group": group,
-            "athletes": athletes,
-            "sessions": sessions,
-            "attendance_map": attendance_map,
-            "today": today,
-            "today_session": today_session,
-            "opts": self.model._meta,
-        }
-        return TemplateResponse(request, "admin/core/traininggroup/group_journal.html", context)
-    
-    @transaction.atomic
-    def remove_athlete_from_group(self, request, group_id, athlete_id):
-        """Удалить спортсмена из группы"""
-        group = get_object_or_404(TrainingGroup, pk=group_id)
-        athlete = get_object_or_404(Athlete, pk=athlete_id)
-        
-        try:
-            relation = AthleteTrainingGroup.objects.get(training_group=group, athlete=athlete)
-            relation.delete()
-            messages.success(request, f"Спортсмен {athlete} удален из группы.")
-        except AthleteTrainingGroup.DoesNotExist:
-            messages.error(request, f"Спортсмен {athlete} не состоит в группе.")
-        
-        return redirect(reverse("admin:core_traininggroup_info", args=[group.id]))
-    
-    @transaction.atomic
-    def add_athlete_to_group(self, request, group_id):
-        """Добавить спортсмена в группу"""
-        group = get_object_or_404(TrainingGroup, pk=group_id)
-        
-        if request.method == "POST":
-            athlete_id = request.POST.get("athlete_id")
-            if athlete_id:
-                athlete = get_object_or_404(Athlete, pk=athlete_id)
-                relation, created = AthleteTrainingGroup.objects.get_or_create(
-                    training_group=group, 
-                    athlete=athlete
-                )
-                if created:
-                    messages.success(request, f"Спортсмен {athlete} добавлен в группу.")
-                else:
-                    messages.info(request, f"Спортсмен {athlete} уже состоит в группе.")
-        
-        return redirect(reverse("admin:core_traininggroup_info", args=[group.id]))
-    
-    def generate_sessions_for_group(self, request, group_id):
-        """Генерация тренировочных сессий для группы"""
-        from django.utils import timezone
-        from datetime import timedelta, date
-        
-        group = get_object_or_404(TrainingGroup, pk=group_id)
-        
-        if request.method == "POST":
-            months = int(request.POST.get("months", 2))
-            today = timezone.localdate()
-            
-            created_count = 0
-            
-            # Генерируем сессии на указанное количество месяцев
-            for months_ahead in range(months):
-                if months_ahead == 0:
-                    # Текущий месяц (с сегодняшнего дня)
-                    first_day = today
-                    if today.month == 12:
-                        next_first = today.replace(year=today.year+1, month=1, day=1)
-                    else:
-                        next_first = today.replace(month=today.month+1, day=1)
-                else:
-                    # Следующие месяцы
-                    year = today.year
-                    month = today.month + months_ahead
-                    while month > 12:
-                        year += 1
-                        month -= 12
-                    
-                    first_day = date(year, month, 1)
-                    if month == 12:
-                        next_first = date(year+1, 1, 1)
-                    else:
-                        next_first = date(year, month+1, 1)
-                
-                # Получаем расписание группы
-                schedules = GroupSchedule.objects.filter(training_group=group)
-                
-                current_date = first_day
-                while current_date < next_first:
-                    for schedule in schedules:
-                        # weekday в модели: 1=Пн, 2=Вт, ..., 7=Вс
-                        # weekday() в Python: 0=Пн, 1=Вт, ..., 6=Вс
-                        if current_date.weekday() + 1 == schedule.weekday:
-                            # Проверяем, существует ли уже сессия
-                            existing_session = TrainingSession.objects.filter(
-                                training_group=group,
-                                date=current_date,
-                                start_time=schedule.start_time
-                            ).exists()
-                            
-                            if not existing_session:
-                                # Создаем новую сессию
-                                TrainingSession.objects.create(
-                                    training_group=group,
-                                    date=current_date,
-                                    start_time=schedule.start_time,
-                                    end_time=schedule.end_time,
-                                    is_closed=False,
-                                    is_canceled=False
-                                )
-                                created_count += 1
-                    
-                    current_date += timedelta(days=1)
-            
-            messages.success(request, f"Создано {created_count} тренировочных сессий для группы {group}")
-        
-        return redirect(reverse("admin:core_traininggroup_change", args=[group.id]))
-    
-    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
-        """Переопределяем для добавления расписания группы в контекст"""
-        extra_context = extra_context or {}
-        
-        if object_id:
-            try:
-                group = TrainingGroup.objects.get(pk=object_id)
-                # Получаем расписание группы
-                schedules = GroupSchedule.objects.filter(training_group=group).order_by('weekday', 'start_time')
-                extra_context['group_schedules'] = schedules
-            except TrainingGroup.DoesNotExist:
-                pass
-        
-        return super().changeform_view(request, object_id, form_url, extra_context)
-    
-    def get_weekdays_display(self, obj):
-        """Отображение дней недели группы в компактном виде"""
-        from django.utils.html import format_html
-        
-        # Получаем расписание группы
-        schedules = GroupSchedule.objects.filter(training_group=obj).order_by('weekday')
-        
-        if not schedules.exists():
-            return format_html('<span style="color: #999;">Нет расписания</span>')
-        
-        # Словарь дней недели с сокращениями и цветами
-        weekday_short = {
-            1: ('Пн', '#2196F3'),
-            2: ('Вт', '#4CAF50'), 
-            3: ('Ср', '#FF9800'),
-            4: ('Чт', '#9C27B0'),
-            5: ('Пт', '#F44336'),
-            6: ('Сб', '#607D8B'),
-            7: ('Вс', '#795548')
-        }
-        
-        # Формируем HTML для отображения дней
-        days_html = []
-        for schedule in schedules:
-            short_name, color = weekday_short.get(schedule.weekday, (f'Д{schedule.weekday}', '#666'))
-            days_html.append(
-                f'<span style="display: inline-block; width: 20px; height: 20px; '
-                f'background-color: {color}; color: white; border-radius: 3px; '
-                f'text-align: center; line-height: 20px; font-size: 10px; '
-                f'margin: 1px; font-weight: bold;">{short_name}</span>'
-            )
-        
-        return format_html(''.join(days_html))
-    get_weekdays_display.short_description = 'Дни недели'
+# Исправленный админ для TrainingGroup перенесен в конец файла
+
 
 # Убираем AthleteTrainingGroup из основного меню админки, но оставляем для inline в филдсетах
 # @admin.register(AthleteTrainingGroup)
@@ -1579,7 +1302,12 @@ class AttendanceRecordInline(admin.TabularInline):
     fields = ('athlete', 'was_present', 'marked_by')
     readonly_fields = ('marked_by',)
 
-@admin.register(TrainingSession)
+# TrainingSession скрыта из меню - управляем через TrainingGroup
+try:
+    admin.site.unregister(TrainingSession)
+except admin.sites.NotRegistered:
+    pass
+
 class TrainingSessionAdmin(admin.ModelAdmin):
     list_display = ('training_group', 'date', 'start_time', 'end_time', 'is_closed', 'is_canceled')
     list_filter = ('training_group', 'date', 'is_closed', 'is_canceled')
@@ -1713,7 +1441,7 @@ class Step2RegistrationView(RegistrationAdminView):
             draft.save()
             
             # Назначаем базовую группу по роли
-            assign_groups_for_registration(draft.user, role)
+            utils.assign_groups_for_registration(draft.user, role)
             
             # если сотрудник — идем на выбор подроли (шаг 3а)
             if draft.role == 'staff':
@@ -1774,7 +1502,7 @@ class Step3StaffRoleView(RegistrationAdminView):
             draft.save()
             
             # Назначаем группу подроли для staff
-            assign_groups_for_registration(draft.user, 'staff', subrole)
+            utils.assign_groups_for_registration(draft.user, 'staff', subrole)
             
             return HttpResponseRedirect(reverse('admin:register_step4', args=[draft.id]))
         return render(request, 'admin/core/registration/step3_staff_role.html', {
@@ -2334,3 +2062,456 @@ class RegistrationDraftAdmin(admin.ModelAdmin):
     
     def has_delete_permission(self, request, obj=None):
         return True  # Можно удалять для очистки
+
+
+# ИСПРАВЛЕННЫЙ АДМИН ДЛЯ TRAININGGROUP
+@admin.register(TrainingGroup)
+class TrainingGroupAdmin(admin.ModelAdmin):
+    list_display = ("name", "trainer", "is_active")
+    search_fields = ("name", "trainer__user__last_name", "trainer__user__first_name")
+    fields = ("name", "trainer", "age_min", "age_max", "max_athletes", "is_active")
+    autocomplete_fields = ['trainer']
+    
+    def get_form(self, request, obj=None, **kwargs):
+        """Переопределяем для явного указания полей"""
+        kwargs['fields'] = self.fields
+        return super().get_form(request, obj, **kwargs)
+    
+    def get_urls(self):
+        urls = super().get_urls()
+        extra = [
+            path("create/", self.admin_site.admin_view(self.create_wizard_view), name="core_traininggroup_create_wizard"),
+            path("create/step/<str:step>/", self.admin_site.admin_view(self.create_step_view), name="core_traininggroup_create_step"),
+            path("<int:group_id>/panel/", self.admin_site.admin_view(self.panel_view), name="core_traininggroup_panel"),
+            path("<int:group_id>/edit/", self.admin_site.admin_view(self.edit_group_view), name="core_traininggroup_edit"),
+            path("<int:group_id>/children/", self.admin_site.admin_view(self.children_view), name="core_traininggroup_children"),
+            path("<int:group_id>/schedule/", self.admin_site.admin_view(self.schedule_view), name="core_traininggroup_schedule"),
+            path("<int:group_id>/journal/", self.admin_site.admin_view(self.journal_view), name="core_traininggroup_journal"),
+        ]
+        return extra + urls
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        return redirect(reverse("admin:core_traininggroup_panel", args=[object_id]))
+    
+    def add_view(self, request, form_url="", extra_context=None):
+        # Перенаправляем на мастер создания группы
+        return redirect(reverse("admin:core_traininggroup_create_wizard"))
+
+    def panel_view(self, request, group_id: int):
+        group = get_object_or_404(TrainingGroup, pk=group_id)
+        if not self.has_view_permission(request, group):
+            raise PermissionDenied
+
+        children_count = AthleteTrainingGroup.objects.filter(training_group=group).count()
+        schedule_count = GroupSchedule.objects.filter(training_group=group).count()
+        today = timezone.localdate()
+        next_session = (TrainingSession.objects
+                        .filter(training_group=group, date__gte=today)
+                        .order_by("date","start_time").first())
+
+        ctx = {
+            **self.admin_site.each_context(request),
+            "title": f"Группа: {group.name}",
+            "opts": self.model._meta,
+            "group": group,
+            "header": {
+                "name": group.name,
+                "trainer": str(getattr(group, "trainer", "—")),
+                "children_count": children_count,
+                "schedule_count": schedule_count,
+                "next_session": next_session,
+                "urls": {
+                    "edit": reverse("admin:core_traininggroup_edit", args=[group.id]),
+                    "children": reverse("admin:core_traininggroup_children", args=[group.id]),
+                    "schedule": reverse("admin:core_traininggroup_schedule", args=[group.id]),
+                    "journal": reverse("admin:core_traininggroup_journal", args=[group.id]),
+                }
+            }
+        }
+        return TemplateResponse(request, "admin/core/traininggroup/panel.html", ctx)
+
+    def children_view(self, request, group_id):
+        group = get_object_or_404(TrainingGroup, pk=group_id)
+        if not self.has_view_permission(request, group):
+            raise PermissionDenied
+
+        members = (Athlete.objects
+                   .filter(id__in=AthleteTrainingGroup.objects
+                           .filter(training_group=group).values("athlete_id"))
+                   .order_by("last_name","first_name"))
+
+        # Доступные спортсмены (не в группе)
+        available_athletes = (Athlete.objects
+                             .exclude(id__in=AthleteTrainingGroup.objects
+                                     .filter(training_group=group).values("athlete_id"))
+                             .filter(is_archived=False)
+                             .order_by("last_name","first_name"))
+
+        if request.method == "POST":
+            if not self.has_change_permission(request, group):
+                raise PermissionDenied
+            add_id = request.POST.get("athlete_id")
+            rem_id = request.POST.get("remove_id")
+            if add_id:
+                AthleteTrainingGroup.objects.get_or_create(training_group=group, athlete_id=add_id)
+                messages.success(request, "Ребёнок добавлен в группу.")
+            if rem_id:
+                AthleteTrainingGroup.objects.filter(training_group=group, athlete_id=rem_id).delete()
+                messages.success(request, "Ребёнок убран из группы.")
+            return redirect(request.path)
+
+        ctx = {**self.admin_site.each_context(request),
+               "title": f"Дети группы: {group.name}",
+               "opts": self.model._meta, "group": group, "members": members, 
+               "available_athletes": available_athletes}
+        return TemplateResponse(request, "admin/core/traininggroup/children.html", ctx)
+
+    def schedule_view(self, request, group_id):
+        group = get_object_or_404(TrainingGroup, pk=group_id)
+        if not self.has_view_permission(request, group):
+            raise PermissionDenied
+
+        current_schedule = GroupSchedule.objects.filter(training_group=group)
+        current_weekdays = set(sch.weekday for sch in current_schedule)
+        current_start_time = current_schedule.first().start_time if current_schedule.exists() else None
+        current_end_time = current_schedule.first().end_time if current_schedule.exists() else None
+
+        if request.method == "POST":
+            if not self.has_change_permission(request, group):
+                raise PermissionDenied
+            
+            weekdays = [int(d) for d in request.POST.getlist("weekdays") if d.isdigit()]
+            start_time = request.POST.get("start_time")
+            end_time = request.POST.get("end_time")
+            
+            if weekdays and start_time and end_time:
+                with transaction.atomic():
+                    GroupSchedule.objects.filter(training_group=group).delete()
+                    for weekday in weekdays:
+                        GroupSchedule.objects.create(
+                            training_group=group,
+                            weekday=weekday,
+                            start_time=start_time,
+                            end_time=end_time
+                        )
+                    resync_future_sessions_for_group(group)
+                    ensure_month_sessions_for_group(group)
+                
+                messages.success(request, "Расписание обновлено, будущие тренировки пересчитаны.")
+                return redirect(request.path)
+            else:
+                messages.error(request, "Заполните все поля расписания.")
+
+        # Превью дат текущего месяца
+        today = timezone.localdate()
+        first = today.replace(day=1)
+        next_first = (first.replace(year=first.year+1, month=1, day=1)
+                      if first.month==12 else first.replace(month=first.month+1, day=1))
+        preview = []
+        d = first
+        while d < next_first:
+            for weekday in current_weekdays:
+                if d.weekday() == (weekday - 1):  # Преобразование 1-7 в 0-6
+                    preview.append((d, current_start_time, current_end_time))
+            d += timedelta(days=1)
+        preview.sort()
+
+        weekday_choices = [
+            (1, 'Понедельник'), (2, 'Вторник'), (3, 'Среда'), (4, 'Четверг'),
+            (5, 'Пятница'), (6, 'Суббота'), (7, 'Воскресенье')
+        ]
+
+        ctx = {
+            **self.admin_site.each_context(request),
+            "title": f"Расписание группы: {group.name}",
+            "opts": self.model._meta,
+            "group": group,
+            "weekday_choices": weekday_choices,
+            "current_weekdays": current_weekdays,
+            "current_start_time": current_start_time,
+            "current_end_time": current_end_time,
+            "preview": preview,
+        }
+        return TemplateResponse(request, "admin/core/traininggroup/schedule.html", ctx)
+
+    def journal_view(self, request, group_id):
+        group = get_object_or_404(TrainingGroup, pk=group_id)
+        if not self.has_view_permission(request, group):
+            raise PermissionDenied
+
+        ensure_month_sessions_for_group(group)
+        
+        today = timezone.localdate()
+        
+        if request.method == "POST":
+            if not self.has_change_permission(request, group):
+                raise PermissionDenied
+            
+            today_session = TrainingSession.objects.filter(
+                training_group=group, date=today, is_closed=False
+            ).first()
+            
+            if today_session:
+                with transaction.atomic():
+                    AttendanceRecord.objects.filter(session=today_session).delete()
+                    for athlete_id in request.POST.getlist("present"):
+                        if athlete_id.isdigit():
+                            AttendanceRecord.objects.create(
+                                session=today_session,
+                                athlete_id=int(athlete_id)
+                            )
+                    
+                    today_session.is_closed = True
+                    today_session.save(update_fields=["is_closed"])
+
+                messages.success(request, "Посещаемость сохранена. Сессия закрыта.")
+                return redirect(request.path)
+            else:
+                messages.error(request, "Сегодня нет тренировки или сессия уже закрыта.")
+
+        # Находим сегодняшнюю активную сессию
+        today_session = TrainingSession.objects.filter(
+            training_group=group, date=today, is_closed=False
+        ).first()
+
+        # Все сессии текущего месяца
+        first = today.replace(day=1)
+        next_first = (first.replace(year=first.year+1, month=1, day=1)
+                      if first.month==12 else first.replace(month=first.month+1, day=1))
+        sessions = (TrainingSession.objects
+                    .filter(training_group=group, date__gte=first, date__lt=next_first)
+                    .order_by("date"))
+
+        # Все дети группы
+        children = (Athlete.objects
+                    .filter(id__in=AthleteTrainingGroup.objects
+                            .filter(training_group=group).values("athlete_id"))
+                    .order_by("last_name","first_name"))
+
+        # Записи посещаемости
+        present = {}
+        for record in AttendanceRecord.objects.filter(session__in=sessions):
+            if record.session_id not in present:
+                present[record.session_id] = set()
+            present[record.session_id].add(record.athlete_id)
+
+        ctx = {
+            **self.admin_site.each_context(request),
+            "title": f"Журнал группы: {group.name}",
+            "opts": self.model._meta,
+            "group": group,
+            "sessions": sessions,
+            "children": children,
+            "present": present,
+            "today": today,
+            "today_session": today_session,
+        }
+        return TemplateResponse(request, "admin/core/traininggroup/journal.html", ctx)
+
+    def create_wizard_view(self, request):
+        """Мастер создания группы - шаг 1: Данные группы"""
+        if not self.has_add_permission(request):
+            raise PermissionDenied
+
+        if request.method == "POST":
+            # Сохранение данных в сессию и переход к расписанию
+            form_data = {
+                'name': request.POST.get('name'),
+                'trainer_id': request.POST.get('trainer'),
+                'age_min': request.POST.get('age_min'),
+                'age_max': request.POST.get('age_max'),
+                'max_athletes': request.POST.get('max_athletes'),
+                'is_active': bool(request.POST.get('is_active'))
+            }
+            
+            # Проверяем обязательные поля
+            if not form_data['name']:
+                messages.error(request, "Название группы обязательно для заполнения.")
+                # Возвращаемся на ту же страницу
+                trainers = Trainer.objects.filter(is_archived=False).select_related('user')
+                ctx = {
+                    **self.admin_site.each_context(request),
+                    "title": "Создать группу - Шаг 1: Данные группы",
+                    "opts": self.model._meta,
+                    "trainers": trainers,
+                    "step": "data",
+                    "next_step": "schedule",
+                    "form_data": form_data  # Передаем данные обратно
+                }
+                return TemplateResponse(request, "admin/core/traininggroup/create_wizard.html", ctx)
+            
+            request.session['group_create_data'] = form_data
+            messages.success(request, f"Данные группы '{form_data['name']}' сохранены. Переходим к расписанию.")
+            return redirect(reverse("admin:core_traininggroup_create_step", args=["schedule"]))
+
+        # GET запрос - показываем форму
+        trainers = Trainer.objects.filter(is_archived=False).select_related('user')
+        ctx = {
+            **self.admin_site.each_context(request),
+            "title": "Создать группу - Шаг 1: Данные группы",
+            "opts": self.model._meta,
+            "trainers": trainers,
+            "step": "data",
+            "next_step": "schedule"
+        }
+        return TemplateResponse(request, "admin/core/traininggroup/create_wizard.html", ctx)
+
+    def create_step_view(self, request, step):
+        """Шаги мастера создания группы"""
+        if not self.has_add_permission(request):
+            raise PermissionDenied
+
+        group_data = request.session.get('group_create_data')
+        if not group_data:
+            messages.error(request, "Данные группы не найдены. Начните заново.")
+            return redirect(reverse("admin:core_traininggroup_create_wizard"))
+
+        if step == "schedule":
+            return self._create_step_schedule(request, group_data)
+        elif step == "children":
+            return self._create_step_children(request, group_data)
+        elif step == "finish":
+            return self._create_step_finish(request, group_data)
+        else:
+            return redirect(reverse("admin:core_traininggroup_create_wizard"))
+
+    def _create_step_schedule(self, request, group_data):
+        """Шаг 2: Расписание группы"""
+        if request.method == "POST":
+            weekdays = [int(d) for d in request.POST.getlist("weekdays") if d.isdigit()]
+            start_time = request.POST.get("start_time")
+            end_time = request.POST.get("end_time")
+            
+            if weekdays and start_time and end_time:
+                # Создаем группу и расписание
+                with transaction.atomic():
+                    # Создаем группу
+                    trainer = Trainer.objects.get(pk=group_data['trainer_id']) if group_data['trainer_id'] else None
+                    group = TrainingGroup.objects.create(
+                        name=group_data['name'],
+                        trainer=trainer,
+                        age_min=group_data['age_min'] or 0,
+                        age_max=group_data['age_max'] or 100,
+                        max_athletes=group_data['max_athletes'] or 20,
+                        is_active=group_data['is_active']
+                    )
+                    
+                    # Создаем расписание
+                    for weekday in weekdays:
+                        GroupSchedule.objects.create(
+                            training_group=group,
+                            weekday=weekday,
+                            start_time=start_time,
+                            end_time=end_time
+                        )
+                    
+                    # Генерируем сессии
+                    from .utils.sessions import ensure_month_sessions_for_group
+                    ensure_month_sessions_for_group(group)
+                    
+                    # Очищаем сессию
+                    if 'group_create_data' in request.session:
+                        del request.session['group_create_data']
+                    
+                    messages.success(request, f"Группа '{group.name}' успешно создана с расписанием!")
+                    return redirect(reverse("admin:core_traininggroup_changelist"))
+            else:
+                messages.error(request, "Заполните все поля расписания.")
+
+        weekday_choices = [
+            (1, 'Понедельник'), (2, 'Вторник'), (3, 'Среда'), (4, 'Четверг'),
+            (5, 'Пятница'), (6, 'Суббота'), (7, 'Воскресенье')
+        ]
+
+        trainers = Trainer.objects.filter(is_archived=False).select_related('user')
+        ctx = {
+            **self.admin_site.each_context(request),
+            "title": f"Создать группу - Шаг 2: Расписание для '{group_data['name']}'",
+            "opts": self.model._meta,
+            "group_data": group_data,
+            "trainers": trainers,
+            "weekday_choices": weekday_choices,
+            "step": "schedule",
+            "prev_step": "data"
+        }
+        return TemplateResponse(request, "admin/core/traininggroup/create_schedule.html", ctx)
+
+    def edit_group_view(self, request, group_id):
+        """Редактирование данных и расписания группы"""
+        group = get_object_or_404(TrainingGroup, pk=group_id)
+        if not self.has_change_permission(request, group):
+            raise PermissionDenied
+
+        if request.method == "POST":
+            action = request.POST.get('action')
+            
+            if action == 'update_data':
+                # Обновляем данные группы
+                group.name = request.POST.get('name', group.name)
+                trainer_id = request.POST.get('trainer')
+                if trainer_id:
+                    group.trainer = Trainer.objects.get(pk=trainer_id)
+                else:
+                    group.trainer = None
+                group.age_min = int(request.POST.get('age_min', 0))
+                group.age_max = int(request.POST.get('age_max', 100))
+                group.max_athletes = int(request.POST.get('max_athletes', 20))
+                group.is_active = bool(request.POST.get('is_active'))
+                group.save()
+                
+                messages.success(request, "Данные группы обновлены.")
+                
+            elif action == 'update_schedule':
+                # Обновляем расписание группы
+                weekdays = [int(d) for d in request.POST.getlist("weekdays") if d.isdigit()]
+                start_time = request.POST.get("start_time")
+                end_time = request.POST.get("end_time")
+                
+                if weekdays and start_time and end_time:
+                    with transaction.atomic():
+                        # Удаляем старое расписание
+                        GroupSchedule.objects.filter(training_group=group).delete()
+                        # Создаем новое расписание
+                        for weekday in weekdays:
+                            GroupSchedule.objects.create(
+                                training_group=group,
+                                weekday=weekday,
+                                start_time=start_time,
+                                end_time=end_time
+                            )
+                        # Пересинхронизируем будущие сессии
+                        from .utils.sessions import resync_future_sessions_for_group, ensure_month_sessions_for_group
+                        resync_future_sessions_for_group(group)
+                        ensure_month_sessions_for_group(group)
+                    
+                    messages.success(request, "Расписание обновлено, будущие тренировки пересчитаны.")
+                else:
+                    messages.error(request, "Заполните все поля расписания.")
+            
+            return redirect(reverse("admin:core_traininggroup_edit", args=[group.id]))
+
+        # GET запрос - показываем форму
+        trainers = Trainer.objects.filter(is_archived=False).select_related('user')
+        current_schedule = GroupSchedule.objects.filter(training_group=group).order_by('weekday')
+        current_weekdays = set(sch.weekday for sch in current_schedule)
+        current_start_time = current_schedule.first().start_time if current_schedule.exists() else None
+        current_end_time = current_schedule.first().end_time if current_schedule.exists() else None
+        
+        weekday_choices = [
+            (1, 'Понедельник'), (2, 'Вторник'), (3, 'Среда'), (4, 'Четверг'),
+            (5, 'Пятница'), (6, 'Суббота'), (7, 'Воскресенье')
+        ]
+        
+        ctx = {
+            **self.admin_site.each_context(request),
+            "title": f"Редактировать группу: {group.name}",
+            "opts": self.model._meta,
+            "group": group,
+            "trainers": trainers,
+            "current_schedule": current_schedule,
+            "current_weekdays": current_weekdays,
+            "current_start_time": current_start_time,
+            "current_end_time": current_end_time,
+            "weekday_choices": weekday_choices,
+        }
+        return TemplateResponse(request, "admin/core/traininggroup/edit_group_tabs.html", ctx)

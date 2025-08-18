@@ -15,7 +15,7 @@ from .forms import (
     StaffSubroleForm,
 )
 from .models import Athlete, Parent, RegistrationDraft, Trainer, Staff
-from .utils import assign_groups_for_registration
+from . import utils
 
 
 def _cleanup_existing_draft(request: HttpRequest) -> None:
@@ -82,7 +82,7 @@ def step2_view(request: HttpRequest, draft_id: int) -> HttpResponse:
             draft.save(update_fields=["role", "current_step", "updated_at"])
             
             # Назначаем базовую группу по роли
-            assign_groups_for_registration(draft.user, role)
+            utils.assign_groups_for_registration(draft.user, role)
             
             return redirect("register_step3", draft_id=draft.id)
     else:
@@ -182,7 +182,7 @@ def step4_view(request: HttpRequest, draft_id: int) -> HttpResponse:
             staff.save()
             
             # Назначаем группу подроли
-            assign_groups_for_registration(draft.user, 'staff', subrole)
+            utils.assign_groups_for_registration(draft.user, 'staff', subrole)
             
             # Активируем пользователя и завершаем
             draft.user.is_active = True

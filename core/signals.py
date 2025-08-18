@@ -2,7 +2,8 @@ from django.db.models.signals import post_save, post_delete, pre_save, m2m_chang
 from django.dispatch import receiver
 from django.contrib.auth.models import User, Group
 from django.contrib.contenttypes.models import ContentType
-from .models import Staff, Parent, Athlete, Trainer, TrainingGroup, Document, AuditRecord
+from .models import Staff, Parent, Athlete, Trainer, TrainingGroup, Document, AuditRecord, GroupSchedule
+from .utils.sessions import resync_future_sessions_for_group
 
 # Упрощенный маппинг - основные роли
 GROUP_MODEL_MAPPING = {
@@ -234,4 +235,9 @@ def log_training_group_changes(sender, instance, **kwargs):
                     details=f"Изменены данные группы: {instance.name}"
                 )
         except TrainingGroup.DoesNotExist:
-            pass 
+            pass
+
+@receiver([post_save, post_delete], sender=GroupSchedule)
+def on_schedule_change(sender, instance, **kwargs):
+    """Автосинхронизация сессий при изменении расписания группы"""
+    resync_future_sessions_for_group(instance.training_group)
