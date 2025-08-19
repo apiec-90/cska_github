@@ -2096,6 +2096,39 @@ class TrainingGroupAdmin(admin.ModelAdmin):
     def add_view(self, request, form_url="", extra_context=None):
         # Перенаправляем на мастер создания группы
         return redirect(reverse("admin:core_traininggroup_create_wizard"))
+    
+    def changelist_view(self, request, extra_context=None):
+        """Переопределяем для добавления статистики"""
+        # Получаем статистику
+        total_groups = TrainingGroup.objects.count()
+        active_groups = TrainingGroup.objects.filter(is_active=True).count()
+        archived_groups = TrainingGroup.objects.filter(is_active=False).count()
+        total_trainers = Trainer.objects.filter(is_archived=False).count()
+        
+        # Добавляем дополнительные данные для каждой группы
+        from django.db.models import Count
+        
+        extra_context = extra_context or {}
+        extra_context.update({
+            'total_groups': total_groups,
+            'active_groups': active_groups,
+            'archived_groups': archived_groups,
+            'total_trainers': total_trainers,
+            'trainers_list': Trainer.objects.filter(is_archived=False).select_related('user'),
+        })
+        
+        response = super().changelist_view(request, extra_context)
+        
+        # Добавляем статистику к каждой группе в результатах
+        if hasattr(response, 'context_data') and 'cl' in response.context_data:
+            cl = response.context_data['cl']
+            for group in cl.result_list:
+                # Подсчеты для каждой группы
+                group.children_count = AthleteTrainingGroup.objects.filter(training_group=group).count()
+                group.schedule_count = GroupSchedule.objects.filter(training_group=group).count()
+                group.sessions_count = TrainingSession.objects.filter(training_group=group).count()
+        
+        return response
 
     def panel_view(self, request, group_id: int):
         group = get_object_or_404(TrainingGroup, pk=group_id)
@@ -2109,11 +2142,22 @@ class TrainingGroupAdmin(admin.ModelAdmin):
                         .filter(training_group=group, date__gte=today)
                         .order_by("date","start_time").first())
 
+        # Получаем детей группы - принудительно выполняем запрос
+        children = list(Athlete.objects
+                       .filter(id__in=AthleteTrainingGroup.objects
+                               .filter(training_group=group).values_list("athlete_id", flat=True))
+                       .order_by("last_name","first_name"))
+
+        # Получаем детальное расписание - принудительно выполняем запрос
+        schedule_details = list(GroupSchedule.objects.filter(training_group=group).order_by('weekday'))
+
         ctx = {
             **self.admin_site.each_context(request),
             "title": f"Группа: {group.name}",
             "opts": self.model._meta,
             "group": group,
+            "children": children,
+            "schedule_details": schedule_details,
             "header": {
                 "name": group.name,
                 "trainer": str(getattr(group, "trainer", "—")),
@@ -2137,13 +2181,13 @@ class TrainingGroupAdmin(admin.ModelAdmin):
 
         members = (Athlete.objects
                    .filter(id__in=AthleteTrainingGroup.objects
-                           .filter(training_group=group).values("athlete_id"))
+                           .filter(training_group=group).values_list("athlete_id", flat=True))
                    .order_by("last_name","first_name"))
 
         # Доступные спортсмены (не в группе)
         available_athletes = (Athlete.objects
                              .exclude(id__in=AthleteTrainingGroup.objects
-                                     .filter(training_group=group).values("athlete_id"))
+                                     .filter(training_group=group).values_list("athlete_id", flat=True))
                              .filter(is_archived=False)
                              .order_by("last_name","first_name"))
 

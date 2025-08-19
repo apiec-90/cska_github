@@ -1,70 +1,97 @@
 {% extends "admin/base_site.html" %}
-{% load i18n admin_urls static admin_modify admin_extras custom_filters %}
-
-{% block title %}Журнал группы: {{ group.name }}{% endblock %}
-
 {% block extrastyle %}
 <style>
-  table.journal{border-collapse:collapse;width:100%}
-  table.journal th,table.journal td{border:1px solid #ddd;padding:6px;text-align:center}
-  th.sticky,td.child{position:sticky;left:0;background:#fff;text-align:left}
-  .muted{opacity:.5}
-  .today{font-weight:600}
+  table.journal{border-collapse:collapse;width:100%;margin-top:20px}
+  table.journal th,table.journal td{border:1px solid #ddd;padding:8px;text-align:center}
+  th.sticky,td.child{position:sticky;left:0;background:#fff;text-align:left;z-index:10}
+  .past{background:#f8f9fa;opacity:.7}
+  .today{background:#e3f2fd;font-weight:600}
+  .future{background:#fff8e1;opacity:.6}
+  .closed{background:#ffebee;opacity:.5}
+  .session-info{font-size:11px;display:block}
+  .no-session{color:#999;font-style:italic}
 </style>
 {% endblock %}
 
 {% block content %}
 <h1>{{ title }}</h1>
-<p>
-  <a class="button" href="{% url 'admin:core_traininggroup_change' group.pk %}">Назад к группе</a>
-  {% if edit_mode %}
-    <a class="button" href="{% url 'admin:core_traininggroup_journal' group.pk %}">Выйти из редактирования</a>
-  {% else %}
-    <a class="button" href="{% url 'admin:core_traininggroup_journal' group.pk %}?edit=1">Редактировать</a>
-  {% endif %}
-</p>
+<p><a class="button" href="{% url 'admin:core_traininggroup_panel' group.pk %}">Назад к группе</a></p>
+
+{% if today_session %}
+<div style="background:#d4edda;border:1px solid #c3e6cb;padding:12px;border-radius:6px;margin:15px 0">
+  <strong>Сегодняшняя тренировка:</strong> {{ today_session.date }} {{ today_session.start_time }}–{{ today_session.end_time }}
+  <br><small>Отметьте присутствующих и сохраните журнал</small>
+</div>
 
 <form method="post">
   {% csrf_token %}
-  <table class="journal">
-    <thead>
+  <div style="margin:15px 0">
+    <h3>Отметить присутствующих:</h3>
+    {% for athlete in children %}
+      <label style="display:block;margin:5px 0">
+        <input type="checkbox" name="present" value="{{ athlete.id }}">
+        {% if athlete.avatar %}<img src="{{ athlete.avatar.url }}" style="width:20px;height:20px;border-radius:50%;margin-right:6px;">{% endif %}
+        {{ athlete.last_name }} {{ athlete.first_name }}
+      </label>
+    {% endfor %}
+  </div>
+  <button class="button default" type="submit">Сохранить посещаемость и закрыть сессию</button>
+</form>
+{% else %}
+<div style="background:#fff3cd;border:1px solid #ffeaa7;padding:12px;border-radius:6px;margin:15px 0">
+  <strong>Сегодня нет тренировки</strong> или сессия уже закрыта.
+</div>
+{% endif %}
+
+<table class="journal">
+  <thead>
+    <tr>
+      <th class="sticky">Спортсмен</th>
+      {% for session in sessions %}
+        <th class="{% if session.date == today %}today{% elif session.date < today %}past{% else %}future{% endif %}">
+          {{ session.date|date:"d.m" }}<br>
+          <span class="session-info">{{ session.start_time }}–{{ session.end_time }}</span>
+          {% if session.is_closed %}<div style="color:#d32f2f;font-size:10px">ЗАКРЫТА</div>{% endif %}
+        </th>
+      {% empty %}
+        <th class="no-session">Нет тренировок</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for athlete in children %}
       <tr>
-        <th class="sticky">Спортсмен</th>
-        {% for s in sessions %}
-          <th class="{% if s.date == today %}today{% else %}muted{% endif %}">
-            {{ s.date }}<br>{{ s.start_time|default_if_none:"" }}
-            {% if s.is_closed %}<div class="muted">закрыта</div>{% endif %}
-          </th>
+        <td class="child">
+          {% if athlete.avatar %}<img src="{{ athlete.avatar.url }}" style="width:24px;height:24px;border-radius:50%;vertical-align:middle;margin-right:8px;">{% endif %}
+          <a href="{% url 'admin:core_athlete_change' athlete.pk %}">{{ athlete.last_name }} {{ athlete.first_name }}</a>
+        </td>
+        {% for session in sessions %}
+          <td class="{% if session.date == today %}today{% elif session.date < today %}past{% else %}future{% endif %}{% if session.is_closed %} closed{% endif %}">
+            {% if session.date < today or session.is_closed %}
+              ❌  
+            {% elif session.date == today %}
+              ⏳
+            {% else %}
+              📅
+            {% endif %}
+          </td>
+        {% empty %}
+          <td class="no-session">—</td>
         {% endfor %}
       </tr>
-    </thead>
-    <tbody>
-      {% for a in athletes %}
-        <tr>
-          <td class="child">
-            {% if a.photo %}<img src="{{ a.photo.url }}" style="width:22px;height:22px;border-radius:50%;vertical-align:middle;margin-right:6px;">{% endif %}
-            <a href="{% url 'admin:core_athlete_change' a.pk %}">{{ a.last_name }} {{ a.first_name }}</a>
-          </td>
-          {% for s in sessions %}
-            <td class="{% if not edit_mode and s.date != today %}muted{% endif %}">
-              {% if edit_mode or (s.date == today and not s.is_closed) %}
-                {# ключ = sid + aid; генерим во view #}
-                <input type="checkbox" name="pk" value="{{ s.date }}_{{ s.start_time }}_{{ a.id }}"
-                       {% if s.date|date:"Y-m-d"|add:"_"|add:s.start_time|time:"H:i" in present and a.id in present|get_item:s.date|date:"Y-m-d"|add:"_"|add:s.start_time|time:"H:i" %}checked{% endif %}>
-              {% else %}
-                {% if s.date|date:"Y-m-d"|add:"_"|add:s.start_time|time:"H:i" in present and a.id in present|get_item:s.date|date:"Y-m-d"|add:"_"|add:s.start_time|time:"H:i" %}✅{% else %}❌{% endif %}
-              {% endif %}
-            </td>
-          {% endfor %}
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+    {% empty %}
+      <tr><td colspan="100%">В группе нет спортсменов</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
 
-  <div style="margin-top:12px">
-    <button class="button default" type="submit">
-      {% if edit_mode %}Сохранить журнал{% else %}Сохранить и закрыть сегодняшнюю сессию{% endif %}
-    </button>
+<div style="margin-top:20px;padding:15px;background:#f8f9fa;border-radius:6px">
+  <h4>Обозначения:</h4>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
+    <div>✅ Присутствовал</div>
+    <div>❌ Отсутствовал</div>
+    <div>⏳ Сегодня (можно отметить)</div>
+    <div>📅 Будущая тренировка</div>
   </div>
-</form>
+</div>
 {% endblock %}
