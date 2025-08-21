@@ -1,0 +1,530 @@
+{% extends "admin/base_site.html" %}
+{% load custom_filters %}
+{% block extrastyle %}
+<style>
+  /* Основная таблица журнала */
+  table.journal {
+    border-collapse: collapse;
+    width: 100%;
+    margin-top: 20px;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  }
+  
+  table.journal th, table.journal td {
+    border: 1px solid #e9ecef;
+    text-align: center;
+    vertical-align: middle;
+  }
+  
+  table.journal th {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    color: #2c3e50;
+    font-weight: 600;
+    padding: 16px 12px;
+    font-size: 14px;
+  }
+  
+  th.sticky, td.child {
+    position: sticky;
+    left: 0;
+    background: #fff;
+    text-align: left;
+    z-index: 10;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.05);
+  }
+  
+  /* Стили для разных типов сессий */
+  .past { background: #f8f9fa; }
+  .today { background: #e8f5e8; font-weight: 600; }
+  .future { background: #fff8e1; }
+  .closed { background: #ffebee; }
+  
+  .session-info { font-size: 11px; display: block; color: #6c757d; }
+  .no-session { color: #999; font-style: italic; }
+  
+  /* Интегрированные ячейки посещаемости */
+  .attendance-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 8px;
+    min-height: 60px;
+  }
+  
+  /* Кликабельные ячейки посещаемости */
+  .attendance-cell.clickable {
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.9);
+    border: 2px solid transparent;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    user-select: none;
+  }
+  
+  .attendance-cell.clickable:hover {
+    background: rgba(76, 175, 80, 0.1);
+    border-color: #4CAF50;
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+  }
+  
+  .attendance-status {
+    font-size: 28px;
+    transition: all 0.3s ease;
+    margin-bottom: 4px;
+  }
+  
+  .attendance-status.present {
+    color: #4CAF50;
+    filter: drop-shadow(0 2px 4px rgba(76, 175, 80, 0.3));
+  }
+  
+  .attendance-status.absent {
+    color: #f44336;
+    opacity: 0.8;
+    filter: drop-shadow(0 2px 4px rgba(244, 67, 54, 0.2));
+  }
+  
+  .attendance-hint {
+    font-size: 9px;
+    color: #666;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    text-align: center;
+    line-height: 1.1;
+    font-weight: 500;
+  }
+  
+  .attendance-cell.clickable:hover .attendance-hint {
+    opacity: 1;
+  }
+  
+  /* Анимация изменения статуса */
+  .attendance-cell.changing {
+    animation: statusChange 0.5s ease;
+  }
+  
+  @keyframes statusChange {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.3); background: rgba(76, 175, 80, 0.2); }
+    70% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+  }
+  
+  /* Закрытые сессии */
+  .attendance-readonly {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    opacity: 0.7;
+  }
+  
+  .readonly-icon {
+    font-size: 24px;
+  }
+  
+  .readonly-icon.present {
+    color: #28a745;
+  }
+  
+  .readonly-icon.absent {
+    color: #dc3545;
+  }
+  
+  .readonly-label {
+    font-size: 11px;
+    color: #6c757d;
+    font-weight: 500;
+  }
+  
+  /* Будущие сессии */
+  .future-session {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    opacity: 0.4;
+  }
+  
+  .future-icon {
+    font-size: 24px;
+  }
+  
+  .future-label {
+    font-size: 11px;
+    color: #6c757d;
+    font-weight: 500;
+  }
+  
+  /* Сегодняшняя сессия - подсветка */
+  .journal td.today .attendance-cell.active {
+    background: linear-gradient(135deg, #e8f5e8, #d4edda);
+    border-radius: 8px;
+    margin: 2px;
+  }
+  
+  .journal td.today .attendance-cell.active .checkmark {
+    border-color: #28a745;
+    box-shadow: 0 3px 10px rgba(40, 167, 69, 0.2);
+  }
+  
+  /* Информация о спортсмене */
+  .athlete-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+  }
+  
+  .athlete-name {
+    font-weight: 600;
+    color: #2c3e50;
+    text-decoration: none;
+  }
+  
+  .athlete-name:hover {
+    color: #4CAF50;
+    text-decoration: none;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<h1>{{ title }}</h1>
+<p><a class="button" href="{% url 'admin:core_traininggroup_panel' group.pk %}">Назад к группе</a></p>
+
+<!-- Панель управления журналом -->
+<div style="background: linear-gradient(135deg, #4CAF50, #45a049); color: white; padding: 20px; border-radius: 12px; margin: 20px 0; display: flex; justify-content: space-between; align-items: center;">
+  <div>
+{% if today_session %}
+      <h2 style="margin: 0 0 8px 0; font-size: 24px;">🏃‍♂️ Журнал посещаемости</h2>
+      <p style="margin: 0; opacity: 0.9;">Тренировка {{ today_session.date|date:"d.m.Y" }} {{ today_session.start_time }}–{{ today_session.end_time }}</p>
+    {% else %}
+      <h2 style="margin: 0 0 8px 0; font-size: 24px;">📋 Журнал посещаемости</h2>
+      <p style="margin: 0; opacity: 0.9;">Управление посещаемостью группы</p>
+    {% endif %}
+</div>
+
+  <div style="display: flex; gap: 15px; align-items: center;">
+    <!-- Кнопка сохранения -->
+    <button id="saveAllChanges" onclick="saveAllAttendanceChanges()" 
+            style="background: #fff; color: #4CAF50; border: none; padding: 12px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px;">
+      💾 Все изменения сохранены
+    </button>
+    
+    {% if today_session %}
+    <!-- Кнопка закрытия сессии -->
+    <form method="post" style="display: inline;">
+  {% csrf_token %}
+      <input type="hidden" name="action" value="close_session">
+      <button type="submit" onclick="return confirm('⚠️ Вы уверены? После закрытия сессии изменения будут невозможны.')"
+              style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 12px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px;">
+        🔒 Закрыть сессию
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Статус сохранения -->
+<div id="saveStatus" style="text-align: center; font-size: 14px; font-weight: 500; margin: 10px 0; color: #4caf50;">
+  ✅ Все изменения сохранены
+</div>
+
+
+
+<table class="journal">
+  <thead>
+    <tr>
+      <th class="sticky">Спортсмен</th>
+      {% for session in sessions %}
+        <th class="{% if session.date == today %}today{% elif session.date < today %}past{% else %}future{% endif %}">
+          {{ session.date|date:"d.m" }}<br>
+          <span class="session-info">{{ session.start_time }}–{{ session.end_time }}</span>
+          {% if session.is_closed %}<div style="color:#d32f2f;font-size:10px">ЗАКРЫТА</div>{% endif %}
+        </th>
+      {% empty %}
+        <th class="no-session">Нет тренировок</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for athlete in children %}
+      <tr>
+        <td class="child">
+          <div class="athlete-info">
+            {% if athlete.avatar %}
+              <img src="{{ athlete.avatar.url }}" style="width:32px;height:32px;border-radius:50%;border:2px solid #4CAF50;">
+            {% else %}
+              <div style="width:32px;height:32px;border-radius:50%;background:#e9ecef;display:flex;align-items:center;justify-content:center;font-size:14px;color:#6c757d;font-weight:bold;">
+                {{ athlete.first_name.0 }}{{ athlete.last_name.0 }}
+              </div>
+            {% endif %}
+            <a href="{% url 'admin:core_athlete_change' athlete.pk %}" class="athlete-name">
+              {{ athlete.last_name }} {{ athlete.first_name }}
+            </a>
+          </div>
+        </td>
+        {% for session in sessions %}
+          {% with session_present=present|lookup:session.id %}
+          <td class="{% if session.date == today %}today{% elif session.date < today %}past{% else %}future{% endif %}{% if session.is_closed %} closed{% endif %}" 
+              data-session="{{ session.id }}" data-athlete="{{ athlete.id }}">
+            {% if session.date <= today and not session.is_closed %}
+              <!-- Активная сессия - кликабельная ячейка -->
+              <div class="attendance-cell clickable" 
+                   data-session="{{ session.id }}" 
+                   data-athlete="{{ athlete.id }}"
+                   data-present="{% if session_present and athlete.id in session_present %}true{% else %}false{% endif %}"
+                   onclick="toggleAttendance(this)">
+                <span class="attendance-status {% if session_present and athlete.id in session_present %}present{% else %}absent{% endif %}">
+                  {% if session_present and athlete.id in session_present %}✅{% else %}❌{% endif %}
+                </span>
+                <div class="attendance-hint">Нажмите для изменения</div>
+              </div>
+            {% elif session.is_closed %}
+              <!-- Закрытая сессия - только просмотр -->
+              <div class="attendance-cell closed">
+                <div class="attendance-readonly">
+                  <span class="readonly-icon {% if session_present and athlete.id in session_present %}present{% else %}absent{% endif %}">
+                    {% if session_present and athlete.id in session_present %}✅{% else %}❌{% endif %}
+                  </span>
+                  <span class="readonly-label">
+                    {% if session_present and athlete.id in session_present %}Был{% else %}Отсутствовал{% endif %}
+                  </span>
+                </div>
+              </div>
+            {% else %}
+              <!-- Будущая тренировка -->
+              <div class="attendance-cell future">
+                <div class="future-session">
+                  <span class="future-icon">📅</span>
+                  <span class="future-label">Предстоит</span>
+                </div>
+              </div>
+            {% endif %}
+          </td>
+          {% endwith %}
+        {% empty %}
+          <td class="no-session">—</td>
+        {% endfor %}
+      </tr>
+    {% empty %}
+      <tr><td colspan="100%">В группе нет спортсменов</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- Дополнительная кнопка сохранения внизу -->
+<div style="text-align: center; margin: 30px 0;">
+  <button id="saveAllChangesBottom" onclick="saveAllAttendanceChanges()" 
+          style="background: #4CAF50; color: white; border: none; padding: 15px 30px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);">
+    💾 Сохранить все изменения посещаемости
+  </button>
+</div>
+
+
+
+<div style="margin-top:20px;padding:15px;background:#f8f9fa;border-radius:6px">
+  <h4>Обозначения:</h4>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
+    <div>✅ Присутствовал</div>
+    <div>❌ Отсутствовал</div>
+    <div>📅 Будущая тренировка</div>
+    <div style="opacity: 0.6;">🔒 Закрытая сессия</div>
+  </div>
+</div>
+
+<script>
+// Простой счетчик изменений
+let changesCount = 0;
+
+function getCsrfToken() {
+    const token = document.querySelector('[name=csrfmiddlewaretoken]');
+    return token ? token.value : '';
+}
+
+function toggleAttendance(cell) {
+    // Получаем данные из data-атрибутов
+    const sessionId = parseInt(cell.dataset.session);
+    const athleteId = parseInt(cell.dataset.athlete);
+    
+    console.log('Переключение посещаемости:', sessionId, athleteId);
+    
+    // Получаем текущий статус
+    const currentPresent = cell.dataset.present === 'true';
+    const newPresent = !currentPresent;
+    
+    // Обновляем данные ячейки
+    cell.dataset.present = newPresent.toString();
+    
+    // Обновляем иконку статуса
+    const statusElement = cell.querySelector('.attendance-status');
+    if (statusElement) {
+        statusElement.textContent = newPresent ? '✅' : '❌';
+        statusElement.className = `attendance-status ${newPresent ? 'present' : 'absent'}`;
+    }
+    
+    // Добавляем анимацию
+    cell.classList.add('changing');
+    setTimeout(() => {
+        cell.classList.remove('changing');
+    }, 500);
+    
+    // Увеличиваем счетчик изменений
+    changesCount++;
+    updateSaveButton();
+    
+    console.log('Новый статус:', newPresent ? 'Присутствует' : 'Отсутствует');
+}
+
+function updateSaveButton() {
+    const saveButton = document.getElementById('saveAllChanges');
+    const saveButtonBottom = document.getElementById('saveAllChangesBottom');
+    const saveStatus = document.getElementById('saveStatus');
+    
+    if (changesCount > 0) {
+        // Обновляем верхнюю кнопку
+        if (saveButton) {
+            saveButton.style.backgroundColor = '#ff9800';
+            saveButton.textContent = `💾 Сохранить изменения (${changesCount})`;
+        }
+        
+        // Обновляем нижнюю кнопку
+        if (saveButtonBottom) {
+            saveButtonBottom.style.backgroundColor = '#ff9800';
+            saveButtonBottom.textContent = `💾 Сохранить ${changesCount} изменений посещаемости`;
+        }
+        
+        // Обновляем статус
+        if (saveStatus) {
+            saveStatus.textContent = `⚠️ У вас есть ${changesCount} несохранённых изменений`;
+            saveStatus.style.color = '#ff9800';
+        }
+    } else {
+        // Обновляем верхнюю кнопку
+        if (saveButton) {
+            saveButton.style.backgroundColor = '#4caf50';
+            saveButton.textContent = '💾 Все изменения сохранены';
+        }
+        
+        // Обновляем нижнюю кнопку
+        if (saveButtonBottom) {
+            saveButtonBottom.style.backgroundColor = '#4caf50';
+            saveButtonBottom.textContent = '💾 Все изменения сохранены';
+        }
+        
+        // Обновляем статус
+        if (saveStatus) {
+            saveStatus.textContent = '✅ Все изменения сохранены';
+            saveStatus.style.color = '#4caf50';
+        }
+    }
+}
+
+function saveAllAttendanceChanges() {
+    const saveButton = document.getElementById('saveAllChanges');
+    const saveButtonBottom = document.getElementById('saveAllChangesBottom');
+    const saveStatus = document.getElementById('saveStatus');
+    
+    // Блокируем обе кнопки
+    if (saveButton) {
+        saveButton.disabled = true;
+        saveButton.textContent = '⏳ Сохранение...';
+    }
+    if (saveButtonBottom) {
+        saveButtonBottom.disabled = true;
+        saveButtonBottom.textContent = '⏳ Сохранение...';
+    }
+    
+    // Собираем все кликабельные ячейки с данными посещаемости
+    const attendanceCells = document.querySelectorAll('.attendance-cell.clickable');
+    const attendanceData = [];
+    
+    attendanceCells.forEach(cell => {
+        const sessionId = parseInt(cell.dataset.session);
+        const athleteId = parseInt(cell.dataset.athlete);
+        const present = cell.dataset.present === 'true';
+        
+        attendanceData.push({
+            session_id: sessionId,
+            athlete_id: athleteId,
+            present: present
+        });
+    });
+    
+    console.log('Отправляем данные:', attendanceData);
+    
+    // Отправляем данные
+    const formData = new FormData();
+    formData.append('csrfmiddlewaretoken', getCsrfToken());
+    formData.append('action', 'bulk_update_attendance');
+    formData.append('changes', JSON.stringify(attendanceData));
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Ответ сервера:', data);
+        if (data.success) {
+            changesCount = 0;
+            updateSaveButton();
+            showNotification(`✅ Сохранено ${attendanceData.length} отметок посещаемости`, 'success');
+        } else {
+            showNotification('Ошибка: ' + (data.error || 'Неизвестная ошибка'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка:', error);
+        showNotification('Ошибка сети: ' + error.message, 'error');
+    })
+    .finally(() => {
+        // Разблокируем обе кнопки
+        if (saveButton) saveButton.disabled = false;
+        if (saveButtonBottom) saveButtonBottom.disabled = false;
+        updateSaveButton();
+    });
+}
+
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    updateSaveButton();
+});
+
+function showNotification(message, type) {
+    // Создаем уведомление
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 4px;
+        color: white;
+        font-weight: bold;
+        z-index: 9999;
+        transition: opacity 0.3s;
+        ${type === 'success' ? 'background: #4caf50;' : 'background: #f44336;'}
+    `;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Убираем уведомление через 3 секунды
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
+}
+</script>
+{% endblock %}
