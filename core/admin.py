@@ -2291,27 +2291,154 @@ class TrainingGroupAdmin(admin.ModelAdmin):
             if not self.has_change_permission(request, group):
                 raise PermissionDenied
             
-            today_session = TrainingSession.objects.filter(
-                training_group=group, date=today, is_closed=False
-            ).first()
-            
-            if today_session:
-                with transaction.atomic():
-                    AttendanceRecord.objects.filter(session=today_session).delete()
-                    for athlete_id in request.POST.getlist("present"):
-                        if athlete_id.isdigit():
-                            AttendanceRecord.objects.create(
-                                session=today_session,
-                                athlete_id=int(athlete_id)
-                            )
+            # Обработка AJAX запроса для изменения посещаемости
+            if request.POST.get('action') == 'toggle_attendance':
+                from django.http import JsonResponse
+                import logging
+                logger = logging.getLogger(__name__)
+                
+                try:
+                    logger.info(f"Toggle attendance request: {request.POST}")
                     
+                    session_id = int(request.POST.get('session_id'))
+                    athlete_id = int(request.POST.get('athlete_id'))
+                    is_present = request.POST.get('present') == 'true'
+                    
+                    logger.info(f"Parsed data: session_id={session_id}, athlete_id={athlete_id}, is_present={is_present}")
+                    
+                    session = get_object_or_404(TrainingSession, pk=session_id, training_group=group)
+                    athlete = get_object_or_404(Athlete, pk=athlete_id)
+                    
+                    logger.info(f"Found session: {session}, athlete: {athlete}")
+                    
+                    # Проверяем, что сессия не закрыта и не в будущем
+                    if session.is_closed:
+                        return JsonResponse({'success': False, 'error': 'Сессия уже закрыта'})
+                    
+                    if session.date > today:
+                        return JsonResponse({'success': False, 'error': 'Нельзя отмечать будущие тренировки'})
+                    
+                    # Получаем staff пользователя (если есть)
+                    try:
+                        marked_by_staff = request.user.staff
+                    except:
+                        # Если у пользователя нет профиля staff, ищем любого активного staff
+                        marked_by_staff = Staff.objects.filter(user__is_active=True).first()
+                    
+                    logger.info(f"Marked by staff: {marked_by_staff}")
+                    
+                    # Получаем или создаем/удаляем запись посещаемости
+                    attendance, created = AttendanceRecord.objects.get_or_create(
+                        session=session,
+                        athlete=athlete,
+                        defaults={
+                            'was_present': is_present,
+                            'marked_by': marked_by_staff
+                        }
+                    )
+                    
+                    logger.info(f"Attendance record: {attendance}, created: {created}")
+                    
+                    if not created:
+                        if is_present:
+                            attendance.was_present = True
+                            attendance.save()
+                            logger.info("Updated attendance to present")
+                        else:
+                            attendance.delete()
+                            logger.info("Deleted attendance record")
+                    elif not is_present:
+                        attendance.delete()
+                        logger.info("Deleted newly created attendance record")
+                    
+                    return JsonResponse({'success': True, 'message': f'Посещаемость {"отмечена" if is_present else "убрана"}'})
+                    
+                except (ValueError, TrainingSession.DoesNotExist, Athlete.DoesNotExist) as e:
+                    logger.error(f"Error in toggle_attendance: {e}")
+                    return JsonResponse({'success': False, 'error': str(e)})
+                except Exception as e:
+                    logger.error(f"Unexpected error in toggle_attendance: {e}")
+                    return JsonResponse({'success': False, 'error': f'Внутренняя ошибка сервера: {str(e)}'})
+            
+            # Обработка массового обновления посещаемости
+            if request.POST.get('action') == 'bulk_update_attendance':
+                from django.http import JsonResponse
+                import json
+                import logging
+                logger = logging.getLogger(__name__)
+                
+                try:
+                    changes_json = request.POST.get('changes')
+                    changes = json.loads(changes_json)
+                    
+                    logger.info(f"Bulk update attendance: {len(changes)} changes")
+                    
+                    # Получаем staff пользователя
+                    try:
+                        marked_by_staff = request.user.staff
+                    except:
+                        marked_by_staff = Staff.objects.filter(user__is_active=True).first()
+                    
+                    updated_count = 0
+                    
+                    with transaction.atomic():
+                        for change in changes:
+                            session_id = int(change['session_id'])
+                            athlete_id = int(change['athlete_id'])
+                            is_present = change['present']
+                            
+                            session = get_object_or_404(TrainingSession, pk=session_id, training_group=group)
+                            athlete = get_object_or_404(Athlete, pk=athlete_id)
+                            
+                            # Проверяем права на изменение
+                            if session.is_closed or session.date > today:
+                                continue  # Пропускаем недопустимые изменения
+                            
+                            # Обновляем или создаем/удаляем запись
+                            attendance, created = AttendanceRecord.objects.get_or_create(
+                                session=session,
+                                athlete=athlete,
+                                defaults={
+                                    'was_present': is_present,
+                                    'marked_by': marked_by_staff
+                                }
+                            )
+                            
+                            if not created:
+                                if is_present:
+                                    attendance.was_present = True
+                                    attendance.save()
+                                else:
+                                    attendance.delete()
+                            elif not is_present:
+                                attendance.delete()
+                            
+                            updated_count += 1
+                    
+                    logger.info(f"Successfully updated {updated_count} attendance records")
+                    return JsonResponse({'success': True, 'updated_count': updated_count})
+                    
+                except (ValueError, json.JSONDecodeError) as e:
+                    logger.error(f"Error parsing bulk update data: {e}")
+                    return JsonResponse({'success': False, 'error': 'Неверный формат данных'})
+                except Exception as e:
+                    logger.error(f"Unexpected error in bulk_update_attendance: {e}")
+                    return JsonResponse({'success': False, 'error': f'Ошибка сервера: {str(e)}'})
+            
+            # Обработка закрытия сессии
+            if request.POST.get('action') == 'close_session':
+                today_session = TrainingSession.objects.filter(
+                    training_group=group, date=today, is_closed=False
+                ).first()
+                
+                if today_session:
                     today_session.is_closed = True
                     today_session.save(update_fields=["is_closed"])
-
-                messages.success(request, "Посещаемость сохранена. Сессия закрыта.")
+                    messages.success(request, f"Сессия {today_session.date} закрыта.")
+                else:
+                    messages.error(request, "Сегодня нет активной тренировки для закрытия.")
+                
                 return redirect(request.path)
-            else:
-                messages.error(request, "Сегодня нет тренировки или сессия уже закрыта.")
 
         # Находим сегодняшнюю активную сессию
         today_session = TrainingSession.objects.filter(
@@ -2332,9 +2459,9 @@ class TrainingGroupAdmin(admin.ModelAdmin):
                             .filter(training_group=group).values("athlete_id"))
                     .order_by("last_name","first_name"))
 
-        # Записи посещаемости
+        # Записи посещаемости - только те, кто был отмечен как присутствующий
         present = {}
-        for record in AttendanceRecord.objects.filter(session__in=sessions):
+        for record in AttendanceRecord.objects.filter(session__in=sessions, was_present=True):
             if record.session_id not in present:
                 present[record.session_id] = set()
             present[record.session_id].add(record.athlete_id)

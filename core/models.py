@@ -262,6 +262,7 @@ class TrainingSession(models.Model):
     end_time = models.TimeField(verbose_name="Время окончания")
     is_closed = models.BooleanField(default=False, verbose_name="Закрыта")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Обновлено")
     is_canceled = models.BooleanField(default=False, verbose_name="Отменена")
     canceled_by = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Отменена кем")
     canceled_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата отмены")

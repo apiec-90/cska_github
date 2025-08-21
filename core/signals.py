@@ -88,8 +88,7 @@ def sync_staff_role_to_group(sender, instance, **kwargs):
         # Добавляем в нужную группу на основе роли
         if instance.role == 'manager':
             group = Group.objects.get_or_create(name='Менеджеры')[0]
-            if instance.staff_role:
-                group.permissions.set(instance.staff_role.permissions.all())
+            # Убираем ссылку на несуществующее поле staff_role
             instance.user.groups.add(group)
 
 @receiver(post_save, sender=Staff)
