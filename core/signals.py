@@ -4,6 +4,7 @@ from django.contrib.auth.models import User, Group
 from django.contrib.contenttypes.models import ContentType
 from .models import Staff, Parent, Athlete, Trainer, TrainingGroup, Document, AuditRecord, GroupSchedule
 from .utils.sessions import resync_future_sessions_for_group
+import os
 
 # Упрощенный маппинг - основные роли
 GROUP_MODEL_MAPPING = {
@@ -35,6 +36,9 @@ GROUP_MODEL_MAPPING = {
 @receiver(m2m_changed, sender=User.groups.through)
 def remove_role_records(sender, instance, action, pk_set, **kwargs):
     """Удаляет записи при удалении пользователя из группы (опционально)"""
+    if os.environ.get('DISABLE_SIGNALS'):
+        return
+        
     if action == "post_remove":  # При удалении из группы
         user = instance
         
@@ -79,6 +83,8 @@ def remove_role_records(sender, instance, action, pk_set, **kwargs):
 @receiver(post_save, sender=Staff)
 def sync_staff_role_to_group(sender, instance, **kwargs):
     """Синхронизация роли Staff с группой Django"""
+    if os.environ.get('DISABLE_SIGNALS'):
+        return
     if instance.role == 'manager':
         # Убираем из всех ролевых групп
         role_groups = Group.objects.filter(name__in=['Менеджеры'])
@@ -94,6 +100,8 @@ def sync_staff_role_to_group(sender, instance, **kwargs):
 @receiver(post_save, sender=Staff)
 def sync_staff_archive(sender, instance, **kwargs):
     """Синхронизация архивирования Staff с User"""
+    if os.environ.get('DISABLE_SIGNALS'):
+        return
     if instance.user:
         if instance.is_archived and instance.user.is_active:
             # Деактивируем User при архивировании Staff

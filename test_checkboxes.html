@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Checkboxes</title>
+    <style>
+        .attendance-checkbox-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100px;
+            height: 50px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            margin: 10px;
+        }
+        
+        .attendance-checkbox {
+            width: 24px;
+            height: 24px;
+        }
+        
+        .edit-mode-indicator {
+            background: orange;
+            color: white;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Тест чекбоксов</h1>
+    
+    <div class="edit-mode-indicator">Режим редактирования</div>
+    
+    <div class="attendance-checkbox-wrapper" data-session="1" data-athlete="1" data-editable="true">
+        <input type="checkbox" class="attendance-checkbox" data-session="1" data-athlete="1">
+    </div>
+    
+    <div class="attendance-checkbox-wrapper" data-session="2" data-athlete="1" data-editable="true">
+        <input type="checkbox" class="attendance-checkbox" data-session="2" data-athlete="1" checked>
+    </div>
+    
+    <div class="attendance-checkbox-wrapper" data-session="3" data-athlete="2" data-editable="false">
+        <input type="checkbox" class="attendance-checkbox" data-session="3" data-athlete="2">
+    </div>
+    
+    <div id="changes-counter">Изменений: 0</div>
+    <button id="save-button">Сохранить</button>
+    
+    <script>
+    class UnifiedJournalContext {
+      constructor() {
+        this.state = {
+          changes: new Map(),
+          isLoading: false,
+          editMode: true,
+          notifications: []
+        };
+        this.subscribers = [];
+      }
+
+      subscribe(callback) {
+        this.subscribers.push(callback);
+        return () => {
+          this.subscribers = this.subscribers.filter(sub => sub !== callback);
+        };
+      }
+
+      notify() {
+        this.subscribers.forEach(callback => callback(this.state));
+      }
+
+      setState(updates) {
+        this.state = { ...this.state, ...updates };
+        this.notify();
+      }
+
+      addChange(sessionId, athleteId, isPresent) {
+        const key = `${sessionId}_${athleteId}`;
+        const newChanges = new Map(this.state.changes);
+        
+        newChanges.set(key, {
+          session_id: parseInt(sessionId),
+          athlete_id: parseInt(athleteId),
+          present: isPresent
+        });
+        
+        this.setState({ changes: newChanges });
+        console.log('✅ Изменение добавлено:', sessionId, athleteId, isPresent, 'Всего:', newChanges.size);
+      }
+
+      clearChanges() {
+        this.setState({ changes: new Map() });
+      }
+    }
+
+    class UnifiedJournalApp {
+      constructor() {
+        this.context = new UnifiedJournalContext();
+        this.elements = {
+          changesCounter: document.getElementById('changes-counter'),
+          saveButton: document.getElementById('save-button')
+        };
+        
+        this.init();
+      }
+
+      init() {
+        this.context.subscribe((state) => {
+          this.updateUI(state);
+        });
+
+        this.updateUI(this.context.state);
+        this.setupEventListeners();
+        
+        console.log('📋 Журнал загружен');
+        console.log(`🔧 Режим редактирования: ${this.context.state.editMode ? 'ВКЛ' : 'ВЫКЛ'}`);
+      }
+
+      setupEventListeners() {
+        console.log('🔥 Настройка event listeners...');
+        
+        const checkboxWrappers = document.querySelectorAll('.attendance-checkbox-wrapper');
+        console.log('🔥 Найдено чекбоксов:', checkboxWrappers.length);
+        
+        checkboxWrappers.forEach((wrapper, index) => {
+          const sessionId = wrapper.getAttribute('data-session');
+          const athleteId = wrapper.getAttribute('data-athlete');
+          
+          console.log(`🔥 Чекбокс ${index}: session=${sessionId}, athlete=${athleteId}`);
+          
+          wrapper.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('🔥 Клик по чекбоксу:', sessionId, athleteId);
+            
+            if (sessionId && athleteId) {
+              this.toggleAttendance(sessionId, athleteId, wrapper);
+            }
+          });
+        });
+
+        if (this.elements.saveButton) {
+          this.elements.saveButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('Кнопка сохранения нажата!');
+          });
+        }
+        
+        console.log('🔥 Event listeners настроены');
+      }
+
+      updateUI(state) {
+        const changesCount = state.changes.size;
+        
+        if (this.elements.changesCounter) {
+          this.elements.changesCounter.textContent = `Изменений: ${changesCount}`;
+        }
+        
+        if (changesCount > 0) {
+          if (this.elements.saveButton) {
+            this.elements.saveButton.disabled = false;
+            this.elements.saveButton.textContent = `💾 Сохранить ${changesCount} изменений`;
+          }
+        } else {
+          if (this.elements.saveButton) {
+            this.elements.saveButton.disabled = true;
+            this.elements.saveButton.textContent = '💾 Сохранить изменения';
+          }
+        }
+      }
+
+      toggleAttendance(sessionId, athleteId, element) {
+        const checkbox = element.querySelector('.attendance-checkbox');
+        
+        if (!checkbox) {
+          console.error('❌ Чекбокс не найден!');
+          return;
+        }
+        
+        console.log('🔥 toggleAttendance вызван:', {
+          sessionId,
+          athleteId,
+          editMode: this.context.state.editMode,
+          checkboxDisabled: checkbox.disabled,
+          dataEditable: element.getAttribute('data-editable')
+        });
+        
+        // В режиме редактирования разрешаем все
+        if (this.context.state.editMode) {
+          // Переключаем состояние
+          const newState = !checkbox.checked;
+          
+          // Принудительно устанавливаем новое состояние
+          checkbox.checked = newState;
+          
+          // Убираем disabled состояние
+          checkbox.disabled = false;
+          
+          // Добавляем изменение
+          this.context.addChange(sessionId, athleteId, newState);
+
+          // Визуальная обратная связь
+          element.style.transform = 'scale(0.95)';
+          setTimeout(() => {
+            element.style.transform = 'scale(1)';
+          }, 150);
+
+          console.log(`✅ Отметка: спортсмен ${athleteId}, сессия ${sessionId}, присутствие: ${newState}`);
+          return;
+        }
+        
+        // В обычном режиме проверяем доступность
+        const isEditable = element.getAttribute('data-editable') === 'true';
+        
+        if (!isEditable) {
+          alert('Эта сессия недоступна для редактирования. Включите режим редактирования.');
+          return;
+        }
+
+        // Переключаем состояние
+        const newState = !checkbox.checked;
+        checkbox.checked = newState;
+        
+        // Добавляем изменение
+        this.context.addChange(sessionId, athleteId, newState);
+
+        // Визуальная обратная связь
+        element.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+          element.style.transform = 'scale(1)';
+        }, 150);
+
+        console.log(`✅ Отметка: спортсмен ${athleteId}, сессия ${sessionId}, присутствие: ${newState}`);
+      }
+    }
+
+    // Инициализация
+    document.addEventListener('DOMContentLoaded', function() {
+      try {
+        window.UnifiedJournal = new UnifiedJournalApp();
+        console.log('✅ Журнал инициализирован');
+      } catch (error) {
+        console.error('❌ Ошибка инициализации:', error);
+      }
+    });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,1438 @@
+{% extends "admin/base_site.html" %}
+{% load custom_filters %}
+
+{% block extrastyle %}
+<style>
+/* Основные переменные */
+:root {
+  --primary-color: #4CAF50;
+  --secondary-color: #2196F3;
+  --danger-color: #f44336;
+  --warning-color: #ff9800;
+  --success-color: #4CAF50;
+  --info-color: #17a2b8;
+  --light-bg: #f8f9fa;
+  --border-color: #dee2e6;
+  --shadow: 0 2px 8px rgba(0,0,0,0.1);
+  --transition: all 0.3s ease;
+}
+
+/* Контейнер журнала */
+.journal-container {
+  background: white;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  margin: 20px 0;
+}
+
+/* Заголовок */
+.journal-header {
+  background: linear-gradient(135deg, var(--primary-color), #45a049);
+  color: white;
+  padding: 20px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.journal-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.journal-subtitle {
+  margin: 5px 0 0 0;
+  opacity: 0.9;
+  font-size: 14px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.back-btn {
+  color: white;
+  text-decoration: none;
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 6px;
+  transition: var(--transition);
+}
+
+.back-btn:hover {
+  background: rgba(255,255,255,0.3);
+  color: white;
+  text-decoration: none;
+}
+
+/* Навигация по месяцам */
+.month-navigation {
+  background: var(--light-bg);
+  padding: 20px 30px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.month-nav-buttons {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.month-btn {
+  background: var(--secondary-color);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: var(--transition);
+  text-decoration: none;
+  display: inline-block;
+}
+
+.month-btn:hover {
+  background: #1976d2;
+  color: white;
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.month-btn.current {
+  background: var(--primary-color);
+}
+
+.month-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #495057;
+  margin: 0;
+}
+
+.month-selector {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.month-dropdown {
+  padding: 6px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: white;
+  font-size: 14px;
+}
+
+/* Панель управления */
+.control-panel {
+  padding: 20px 30px;
+  background: white;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.control-info {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.info-badge {
+  background: var(--info-color);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 15px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.changes-counter {
+  background: var(--secondary-color);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: var(--transition);
+}
+
+.changes-counter.has-changes {
+  background: var(--warning-color);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.control-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.action-btn.primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.action-btn.secondary {
+  background: var(--secondary-color);
+  color: white;
+}
+
+.action-btn.warning {
+  background: var(--warning-color);
+  color: white;
+}
+
+.action-btn.danger {
+  background: var(--danger-color);
+  color: white;
+}
+
+.action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  text-decoration: none;
+  color: white;
+}
+
+.action-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Режим редактирования */
+.edit-mode-indicator {
+  background: var(--warning-color);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-mode-indicator::before {
+  content: "✏️";
+}
+
+/* Таблица */
+.attendance-table-wrapper {
+  overflow-x: auto;
+  max-height: 70vh;
+  position: relative;
+}
+
+.attendance-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  background: white;
+}
+
+.attendance-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.attendance-table th {
+  background: var(--light-bg);
+  border: 1px solid var(--border-color);
+  padding: 12px 8px;
+  text-align: center;
+  font-weight: 600;
+  color: #495057;
+  white-space: nowrap;
+}
+
+.attendance-table th.athlete-name {
+  text-align: left;
+  min-width: 180px;
+  position: sticky;
+  left: 0;
+  background: var(--light-bg);
+  z-index: 11;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+}
+
+.attendance-table td {
+  border: 1px solid var(--border-color);
+  padding: 0;
+  text-align: center;
+  position: relative;
+}
+
+.attendance-table td.athlete-name {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  background: white;
+  position: sticky;
+  left: 0;
+  z-index: 9;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+}
+
+/* Ячейки сессий с состояниями */
+.session-cell {
+  position: relative;
+  min-height: 50px;
+}
+
+.session-cell.active {
+  background: rgba(76, 175, 80, 0.1);
+  border: 2px solid var(--primary-color);
+}
+
+.session-cell.closed {
+  background: rgba(108, 117, 125, 0.1);
+}
+
+.session-cell.future {
+  background: rgba(255, 193, 7, 0.05);
+}
+
+.session-cell.past {
+  background: rgba(220, 53, 69, 0.05);
+}
+
+.session-cell.canceled {
+  background: rgba(220, 53, 69, 0.2);
+  position: relative;
+}
+
+.session-cell.canceled::after {
+  content: "❌";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 20px;
+  z-index: 5;
+}
+
+/* Чекбоксы - базовые стили */
+.attendance-checkbox-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 50px;
+  transition: var(--transition);
+  position: relative;
+}
+
+/* КАСТОМНЫЕ ЧЕКБОКСЫ БЕЗ КОНФЛИКТОВ */
+.custom-checkbox {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.custom-checkbox .checkmark {
+  color: white;
+  font-weight: bold;
+  font-size: 16px;
+  opacity: 0;
+  transform: scale(0);
+  transition: all 0.2s ease;
+}
+
+/* СОСТОЯНИЕ CHECKED */
+.custom-checkbox.checked {
+  background: #4CAF50 !important;
+  border-color: #4CAF50 !important;
+}
+
+.custom-checkbox.checked .checkmark {
+  opacity: 1 !important;
+  transform: scale(1) !important;
+}
+
+/* РЕЖИМ ПРОСМОТРА - ВСЕ ОТКЛЮЧЕНО */
+.journal-container:not(.edit-mode) .custom-checkbox {
+  cursor: not-allowed !important;
+  opacity: 0.4 !important;
+  pointer-events: none !important;
+}
+
+.journal-container:not(.edit-mode) .custom-checkbox.checked {
+  background: #6c757d !important;
+  border-color: #6c757d !important;
+}
+
+/* РЕЖИМ РЕДАКТИРОВАНИЯ - ВСЕ АКТИВНО */
+.journal-container.edit-mode .custom-checkbox {
+  cursor: pointer !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+.journal-container.edit-mode .custom-checkbox:hover {
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+  transform: scale(1.05);
+}
+
+/* АНИМАЦИИ КЛИКА */
+.custom-checkbox.clicked {
+  transform: scale(0.9) !important;
+}
+
+.custom-checkbox.bounce {
+  transform: scale(1.1) !important;
+  transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+}
+
+/* Обертка чекбокса */
+.attendance-checkbox-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 50px;
+  transition: var(--transition);
+  position: relative;
+}
+
+.journal-container.edit-mode .attendance-checkbox-wrapper:hover {
+  background: rgba(76, 175, 80, 0.1);
+}
+
+/* Режим просмотра - все чекбоксы заблокированы */
+.journal-container:not(.edit-mode) .attendance-checkbox-wrapper {
+  cursor: not-allowed;
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.journal-container:not(.edit-mode) .attendance-checkbox {
+  cursor: not-allowed;
+  opacity: 0.4;
+  background: #f8f9fa !important;
+  border-color: #dee2e6 !important;
+  pointer-events: none;
+}
+
+.journal-container:not(.edit-mode) .attendance-checkbox:checked {
+  background: #6c757d !important;
+  border-color: #6c757d !important;
+}
+
+/* Режим редактирования - все чекбоксы активны */
+.journal-container.edit-mode .attendance-checkbox-wrapper {
+  cursor: pointer;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.journal-container.edit-mode .attendance-checkbox {
+  cursor: pointer;
+  opacity: 1;
+  pointer-events: auto;
+  background: white;
+  border-color: #ddd;
+}
+
+.journal-container.edit-mode .attendance-checkbox-wrapper:hover {
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.journal-container.edit-mode .attendance-checkbox:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+  transform: scale(1.05);
+}
+
+/* Анимация при клике на чекбокс */
+.attendance-checkbox.clicked {
+  transform: scale(0.9);
+  transition: transform 0.1s ease;
+}
+
+.attendance-checkbox.clicked.bounce {
+  transform: scale(1.1);
+  transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+ .attendance-checkbox:checked {
+   background: var(--primary-color) !important;
+   border-color: var(--primary-color) !important;
+ }
+
+ .attendance-checkbox:checked::after {
+   content: '✓' !important;
+   position: absolute;
+   top: 50%;
+   left: 50%;
+   transform: translate(-50%, -50%);
+   color: white !important;
+   font-weight: bold;
+   font-size: 16px;
+ }
+
+/* Неактивные отмеченные чекбоксы тоже затемнены */
+.attendance-checkbox[data-editable="false"]:checked {
+  background: #6c757d !important;
+  border-color: #6c757d !important;
+}
+
+.attendance-checkbox:not([data-editable="false"]):hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+}
+
+/* Заголовки сессий */
+.session-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 70px;
+  padding: 8px 4px;
+}
+
+.session-date {
+  font-weight: 600;
+  color: #495057;
+  font-size: 12px;
+}
+
+.session-time {
+  font-size: 10px;
+  color: #6c757d;
+}
+
+.session-status {
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.session-status.active {
+  background: var(--primary-color);
+  color: white;
+}
+
+.session-status.closed {
+  background: #6c757d;
+  color: white;
+}
+
+.session-status.future {
+  background: var(--warning-color);
+  color: white;
+}
+
+.session-status.past {
+  background: var(--info-color);
+  color: white;
+}
+
+.session-status.canceled {
+  background: var(--danger-color);
+  color: white;
+}
+
+/* Статистика */
+.statistics-panel {
+  background: var(--light-bg);
+  padding: 15px 30px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-number {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary-color);
+  display: block;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #6c757d;
+  margin-top: 4px;
+}
+
+/* Уведомления */
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 16px 24px;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  z-index: 1000;
+  transform: translateX(400px);
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: var(--shadow);
+}
+
+.notification.show {
+  transform: translateX(0);
+}
+
+.notification.success {
+  background: var(--success-color);
+}
+
+.notification.error {
+  background: var(--danger-color);
+}
+
+.notification.warning {
+  background: var(--warning-color);
+}
+
+.notification.info {
+  background: var(--info-color);
+}
+
+/* Загрузчик */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  opacity: 0;
+  visibility: hidden;
+  transition: var(--transition);
+}
+
+.loading-overlay.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255,255,255,0.3);
+  border-top: 4px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .journal-header {
+    padding: 15px 20px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .journal-title {
+    font-size: 20px;
+  }
+  
+  .month-navigation, .control-panel {
+    padding: 15px 20px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  
+  .control-info {
+    justify-content: center;
+  }
+  
+  .attendance-table th.athlete-name {
+    min-width: 120px;
+  }
+  
+  .session-header {
+    min-width: 50px;
+    padding: 6px 2px;
+  }
+  
+  .statistics-panel {
+    padding: 15px 20px;
+  }
+}
+
+/* Стили для недоступных чекбоксов */
+.attendance-checkbox-wrapper[data-editable="false"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.attendance-checkbox-wrapper[data-editable="false"] .attendance-checkbox {
+  cursor: not-allowed;
+}
+
+.attendance-checkbox-wrapper[data-editable="false"]:hover {
+  opacity: 0.6;
+}
+
+.attendance-checkbox-wrapper[data-editable="false"] .attendance-checkbox:disabled {
+  opacity: 0.4;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+
+<div class="journal-container{% if edit_mode %} edit-mode{% endif %}">
+  <!-- Заголовок -->
+  <div class="journal-header">
+    <div>
+      <h1 class="journal-title">📋 {{ title }}</h1>
+      <p class="journal-subtitle">Объединенный журнал посещаемости с расширенными возможностями</p>
+    </div>
+    <div class="header-actions">
+      <a href="{% url 'admin:core_traininggroup_panel' group.pk %}" class="back-btn">
+        ← Назад к группе
+      </a>
+    </div>
+  </div>
+
+  <!-- Навигация по месяцам -->
+  <div class="month-navigation">
+    <div class="month-nav-buttons">
+      <a href="?year={{ month_nav.prev.year }}&month={{ month_nav.prev.month }}" class="month-btn">
+        ← {{ month_nav.prev.name }}
+      </a>
+      <h2 class="month-title">{{ month_nav.current.name }} {{ month_nav.current.year }}</h2>
+      <a href="?year={{ month_nav.next.year }}&month={{ month_nav.next.month }}" class="month-btn">
+        {{ month_nav.next.name }} →
+      </a>
+    </div>
+    
+    <div class="month-selector">
+      <select class="month-dropdown" onchange="navigateToMonth(this.value)">
+        {% for month_item in month_nav.available_months %}
+        <option value="{{ month_item.year }}-{{ month_item.month }}" 
+                {% if month_item.month == month_nav.current.month %}selected{% endif %}>
+          {{ month_item.name }} {{ month_item.year }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <!-- Панель управления -->
+  <div class="control-panel">
+    <div class="control-info">
+      <div class="info-badge">
+        Сессий: {{ statistics.total }}
+      </div>
+      <div class="changes-counter" id="changes-counter">
+        Изменений: 0
+      </div>
+      {% if edit_mode %}
+      <div class="edit-mode-indicator">
+        Режим редактирования
+      </div>
+      {% endif %}
+    </div>
+    
+    <div class="control-actions">
+      <a href="?year={{ current_year }}&month={{ current_month }}&edit=1" class="action-btn warning" id="edit-mode-btn">
+        ✏️ Режим редактирования
+      </a>
+      
+      <button class="action-btn primary" id="save-button" disabled>
+        💾 Сохранить изменения
+      </button>
+    </div>
+  </div>
+
+  <!-- Таблица посещаемости -->
+  <div class="attendance-table-wrapper">
+    <table class="attendance-table" id="attendance-table">
+      <thead>
+        <tr>
+          <th class="athlete-name">👤 Спортсмен</th>
+          {% for session in sessions %}
+          <th class="session-cell {{ session.state }}{% if session.is_canceled %} canceled{% endif %}">
+            <div class="session-header">
+              <div class="session-date">{{ session.date|date:"d.m" }}</div>
+              <div class="session-time">{{ session.start_time|time:"H:i" }}</div>
+              <div class="session-status {{ session.state }}{% if session.is_canceled %} canceled{% endif %}">
+                {% if session.is_canceled %}
+                  Отменена
+                {% elif session.state == 'active' %}
+                  Идет сейчас
+                {% elif session.state == 'closed' %}
+                  Закрыта
+                {% elif session.state == 'future' %}
+                  Будущая
+                {% elif session.state == 'past' %}
+                  Прошла
+                {% endif %}
+              </div>
+            </div>
+          </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for athlete in children %}
+        <tr>
+          <td class="athlete-name">
+            {{ athlete.last_name }} {{ athlete.first_name }}
+          </td>
+          {% for session in sessions %}
+          {% with session_present=present|lookup:session.id %}
+          <td class="session-cell {{ session.state }}{% if session.is_canceled %} canceled{% endif %}">
+            {% if not session.is_canceled %}
+            <div class="attendance-checkbox-wrapper" 
+                 data-session="{{ session.id }}"
+                 data-athlete="{{ athlete.id }}">
+              <!-- КАСТОМНЫЙ ЧЕКБОКС БЕЗ INPUT -->
+              <div class="custom-checkbox"
+                   data-session="{{ session.id }}"
+                   data-athlete="{{ athlete.id }}"
+                   data-checked="{% if session_present and athlete.id in session_present %}true{% else %}false{% endif %}">
+                <span class="checkmark">✓</span>
+              </div>
+            </div>
+            {% endif %}
+          </td>
+          {% endwith %}
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Статистика -->
+  <div class="statistics-panel">
+    <div class="stat-item">
+      <span class="stat-number">{{ statistics.total }}</span>
+      <div class="stat-label">Всего сессий</div>
+    </div>
+    <div class="stat-item">
+      <span class="stat-number">{{ statistics.active }}</span>
+      <div class="stat-label">Активных</div>
+    </div>
+    <div class="stat-item">
+      <span class="stat-number">{{ statistics.closed }}</span>
+      <div class="stat-label">Закрытых</div>
+    </div>
+    <div class="stat-item">
+      <span class="stat-number">{{ statistics.future }}</span>
+      <div class="stat-label">Будущих</div>
+    </div>
+    <div class="stat-item">
+      <span class="stat-number">{{ statistics.canceled }}</span>
+      <div class="stat-label">Отмененных</div>
+    </div>
+  </div>
+</div>
+
+<!-- Уведомления -->
+<div id="notification" class="notification"></div>
+
+<!-- Загрузчик -->
+<div id="loading-overlay" class="loading-overlay">
+  <div class="spinner"></div>
+</div>
+
+<script>
+// Инициализация переменных
+
+// Объединенный Context API для управления состоянием журнала
+class UnifiedJournalContext {
+  constructor() {
+    this.state = {
+      changes: new Map(),
+      isLoading: false,
+      editMode: false,
+      currentYear: 2025,
+      currentMonth: 8,
+      notifications: []
+    };
+    this.subscribers = [];
+  }
+
+  subscribe(callback) {
+    this.subscribers.push(callback);
+    return () => {
+      this.subscribers = this.subscribers.filter(sub => sub !== callback);
+    };
+  }
+
+  notify() {
+    this.subscribers.forEach(callback => callback(this.state));
+  }
+
+  setState(updates) {
+    this.state = { ...this.state, ...updates };
+    this.notify();
+  }
+
+  addChange(sessionId, athleteId, isPresent) {
+    const key = `${sessionId}_${athleteId}`;
+    const newChanges = new Map(this.state.changes);
+    
+    newChanges.set(key, {
+      session_id: parseInt(sessionId),
+      athlete_id: parseInt(athleteId),
+      present: isPresent
+    });
+    
+    this.setState({ changes: newChanges });
+    console.log('✅ Изменение добавлено:', sessionId, athleteId, isPresent, 'Всего:', newChanges.size);
+  }
+
+  clearChanges() {
+    this.setState({ changes: new Map() });
+  }
+
+  setLoading(isLoading) {
+    this.setState({ isLoading });
+  }
+
+  addNotification(message, type = 'info') {
+    const notification = {
+      id: Date.now(),
+      message,
+      type,
+      timestamp: new Date()
+    };
+    
+    const notifications = [...this.state.notifications, notification];
+    this.setState({ notifications });
+    
+    setTimeout(() => {
+      this.removeNotification(notification.id);
+    }, 5000);
+    
+    return notification.id;
+  }
+
+  removeNotification(id) {
+    const notifications = this.state.notifications.filter(n => n.id !== id);
+    this.setState({ notifications });
+  }
+}
+
+// Основное приложение объединенного журнала
+class UnifiedJournalApp {
+  constructor() {
+    this.context = new UnifiedJournalContext();
+    this.elements = {
+      changesCounter: document.getElementById('changes-counter'),
+      saveButton: document.getElementById('save-button'),
+      notification: document.getElementById('notification'),
+      loadingOverlay: document.getElementById('loading-overlay'),
+      table: document.getElementById('attendance-table')
+    };
+    
+    // Проверяем, что все элементы найдены
+    console.log('🔥 Elements check:', {
+      changesCounter: !!this.elements.changesCounter,
+      saveButton: !!this.elements.saveButton,
+      notification: !!this.elements.notification,
+      loadingOverlay: !!this.elements.loadingOverlay,
+      table: !!this.elements.table
+    });
+    
+    this.init();
+  }
+
+  init() {
+    this.context.subscribe((state) => {
+      this.updateUI(state);
+    });
+
+    this.updateUI(this.context.state);
+    
+    // Добавляем обработчики для всех чекбоксов
+    this.setupEventListeners();
+    
+    console.log('📋 Объединенный журнал посещаемости загружен');
+    console.log(`📊 Найдено ${document.querySelectorAll('.attendance-checkbox').length} чекбоксов`);
+    console.log(`🔧 Режим редактирования: ${this.context.state.editMode ? 'ВКЛ' : 'ВЫКЛ'}`);
+    
+    // Дополнительная отладка
+    setTimeout(() => {
+      console.log('🔥 Проверка через 1 секунду:');
+      console.log('🔥 Чекбоксы:', document.querySelectorAll('.attendance-checkbox').length);
+      console.log('🔥 Wrappers:', document.querySelectorAll('.attendance-checkbox-wrapper').length);
+      console.log('🔥 Edit mode:', this.context.state.editMode);
+    }, 1000);
+  }
+
+  setupEventListeners() {
+    console.log('🔥 Настройка event listeners...');
+    
+    // Обработчики для КАСТОМНЫХ чекбоксов
+    const customCheckboxes = document.querySelectorAll('.custom-checkbox');
+    console.log('🔥 Найдено кастомных чекбоксов:', customCheckboxes.length);
+    
+    // Инициализируем начальное состояние
+    customCheckboxes.forEach((checkbox, index) => {
+      const isChecked = checkbox.getAttribute('data-checked') === 'true';
+      if (isChecked) {
+        checkbox.classList.add('checked');
+      }
+      console.log(`🔥 Кастом чекбокс ${index}: checked=${isChecked}`);
+    });
+    
+    customCheckboxes.forEach((checkbox, index) => {
+      const sessionId = checkbox.getAttribute('data-session');
+      const athleteId = checkbox.getAttribute('data-athlete');
+      
+      console.log(`🔥 Кастом чекбокс ${index}: session=${sessionId}, athlete=${athleteId}`);
+      
+      // Убираем старые обработчики
+      if (checkbox._clickHandler) {
+        checkbox.removeEventListener('click', checkbox._clickHandler);
+      }
+      
+      // Создаем новый обработчик
+      checkbox._clickHandler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const isEditMode = document.querySelector('.journal-container.edit-mode') !== null;
+        
+        console.log('🔥 Клик по кастомному чекбоксу:', {
+          sessionId, 
+          athleteId, 
+          editMode: isEditMode
+        });
+        
+        if (!isEditMode) {
+          this.showNotification('Включите режим редактирования для изменения посещаемости', 'warning');
+          return;
+        }
+        
+        if (sessionId && athleteId) {
+          this.toggleCustomCheckbox(sessionId, athleteId, checkbox);
+        }
+      };
+      
+      checkbox.addEventListener('click', checkbox._clickHandler);
+    });
+
+    // Обработчик для кнопки сохранения
+    if (this.elements.saveButton) {
+      this.elements.saveButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.saveChanges();
+      });
+    }
+    
+    console.log('🔥 Event listeners настроены');
+  }
+
+  updateUI(state) {
+    // Счетчик изменений
+    const changesCount = state.changes.size;
+    
+    if (this.elements.changesCounter) {
+      this.elements.changesCounter.textContent = `Изменений: ${changesCount}`;
+    }
+    
+    if (changesCount > 0) {
+      if (this.elements.changesCounter) {
+        this.elements.changesCounter.classList.add('has-changes');
+      }
+      if (this.elements.saveButton) {
+        this.elements.saveButton.disabled = false;
+        this.elements.saveButton.textContent = `💾 Сохранить ${changesCount} изменений`;
+      }
+    } else {
+      if (this.elements.changesCounter) {
+        this.elements.changesCounter.classList.remove('has-changes');
+      }
+      if (this.elements.saveButton) {
+        this.elements.saveButton.disabled = true;
+        this.elements.saveButton.textContent = '💾 Сохранить изменения';
+      }
+    }
+
+    // Состояние загрузки
+    if (this.elements.loadingOverlay) {
+      if (state.isLoading) {
+        this.elements.loadingOverlay.classList.add('show');
+      } else {
+        this.elements.loadingOverlay.classList.remove('show');
+      }
+    }
+
+    // Уведомления
+    state.notifications.forEach(notification => {
+      if (!notification.shown) {
+        this.showNotification(notification.message, notification.type);
+        notification.shown = true;
+      }
+    });
+  }
+
+  toggleCustomCheckbox(sessionId, athleteId, checkbox) {
+    console.log('🔥 toggleCustomCheckbox:', {
+      sessionId,
+      athleteId,
+      currentChecked: checkbox.classList.contains('checked')
+    });
+    
+    // Проверяем режим редактирования
+    const isEditMode = document.querySelector('.journal-container.edit-mode') !== null;
+    
+    if (!isEditMode) {
+      this.showNotification('Включите режим редактирования для изменения посещаемости', 'warning');
+      return;
+    }
+    
+    // Переключаем состояние
+    const isCurrentlyChecked = checkbox.classList.contains('checked');
+    const newState = !isCurrentlyChecked;
+    
+    // Анимация клика
+    checkbox.classList.add('clicked');
+    const wrapper = checkbox.closest('.attendance-checkbox-wrapper');
+    if (wrapper) {
+      wrapper.style.transform = 'scale(0.95)';
+    }
+    
+    // Обновляем визуальное состояние
+    if (newState) {
+      checkbox.classList.add('checked');
+      checkbox.setAttribute('data-checked', 'true');
+    } else {
+      checkbox.classList.remove('checked');
+      checkbox.setAttribute('data-checked', 'false');
+    }
+    
+    // Добавляем изменение в локальный стейт
+    this.context.addChange(sessionId, athleteId, newState);
+
+    // Анимация отскока
+    setTimeout(() => {
+      checkbox.classList.add('bounce');
+      if (wrapper) {
+        wrapper.style.transform = 'scale(1)';
+      }
+      
+      setTimeout(() => {
+        checkbox.classList.remove('clicked', 'bounce');
+      }, 150);
+    }, 100);
+
+    console.log(`✅ Кастом отметка: спортсмен ${athleteId}, сессия ${sessionId}, присутствие: ${newState}`);
+  }
+
+  toggleAttendance(sessionId, athleteId, element) {
+    const checkbox = element.querySelector('.attendance-checkbox');
+    
+    if (!checkbox) {
+      console.error('❌ Чекбокс не найден!');
+      return;
+    }
+    
+    // Проверяем режим редактирования по CSS классу
+    const isEditMode = document.querySelector('.journal-container.edit-mode') !== null;
+    
+    console.log('🔥 toggleAttendance:', {
+      sessionId,
+      athleteId,
+      editMode: isEditMode,
+      currentChecked: checkbox.checked
+    });
+    
+    // В режиме просмотра ничего не делаем
+    if (!isEditMode) {
+      this.showNotification('Включите режим редактирования для изменения посещаемости', 'warning');
+      return;
+    }
+    
+    // Переключаем состояние с ПОЛНЫМ контролем
+    const newState = !checkbox.checked;
+    
+    // Анимация клика
+    checkbox.classList.add('clicked');
+    element.style.transform = 'scale(0.95)';
+    
+    // ОБНОВЛЯЕМ ВСЕ ВОЗМОЖНЫЕ АТРИБУТЫ
+    checkbox.checked = newState;
+    
+    if (newState) {
+      // Ставим галочку
+      checkbox.setAttribute('checked', 'checked');
+      checkbox.classList.add('force-checked');
+      checkbox.style.setProperty('background', '#4CAF50', 'important');
+      checkbox.style.setProperty('border-color', '#4CAF50', 'important');
+    } else {
+      // Убираем галочку
+      checkbox.removeAttribute('checked');
+      checkbox.classList.remove('force-checked');
+      checkbox.style.setProperty('background', 'white', 'important');
+      checkbox.style.setProperty('border-color', '#ddd', 'important');
+    }
+    
+    // Добавляем изменение в локальный стейт
+    this.context.addChange(sessionId, athleteId, newState);
+
+    // Анимация отскока
+    setTimeout(() => {
+      checkbox.classList.add('bounce');
+      element.style.transform = 'scale(1)';
+      
+      setTimeout(() => {
+        checkbox.classList.remove('clicked', 'bounce');
+      }, 150);
+    }, 100);
+
+    console.log(`✅ Отметка (локально): спортсмен ${athleteId}, сессия ${sessionId}, присутствие: ${newState}`);
+  }
+
+  async saveChanges() {
+    const changes = Array.from(this.context.state.changes.values());
+    
+    if (changes.length === 0) {
+      this.showNotification('Нет изменений для сохранения', 'warning');
+      return;
+    }
+
+    this.context.setLoading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+      formData.append('action', 'bulk_update_attendance');
+      formData.append('edit_mode', this.context.state.editMode ? '1' : '0');
+      formData.append('changes', JSON.stringify(changes));
+
+      console.log('💾 Сохранение', changes.length, 'изменений...');
+
+      const response = await fetch(window.location.href, {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        this.context.clearChanges();
+        
+        // АВТОМАТИЧЕСКИЙ ПЕРЕХОД В РЕЖИМ ПРОСМОТРА
+        this.exitEditMode();
+        
+        // Показываем уведомление о сохранении и переходе в режим просмотра
+        this.showNotification(`✅ Сохранено ${data.updated_count} записей`, 'success');
+        
+        // Показываем уведомление о режиме просмотра
+        setTimeout(() => {
+          this.showModeNotification('view');
+        }, 1500);
+        
+        console.log('✅ Изменения сохранены, переход в режим просмотра');
+      } else {
+        this.showNotification(`❌ Ошибка: ${data.error}`, 'error');
+        console.error('❌ Ошибка сохранения:', data.error);
+      }
+    } catch (error) {
+      this.showNotification('❌ Ошибка сети при сохранении', 'error');
+      console.error('❌ Ошибка сети:', error);
+    } finally {
+      this.context.setLoading(false);
+    }
+  }
+
+
+
+  exitEditMode() {
+    console.log('🔍 Выход из режима редактирования...');
+    
+    // Убираем класс edit-mode с контейнера
+    const container = document.querySelector('.journal-container');
+    if (container) {
+      container.classList.remove('edit-mode');
+    }
+    
+    // Убираем индикатор режима редактирования
+    const editModeIndicator = document.querySelector('.edit-mode-indicator');
+    if (editModeIndicator) {
+      editModeIndicator.remove();
+    }
+    
+    // Обновляем кнопку режима редактирования
+    const editBtn = document.getElementById('edit-mode-btn');
+    if (editBtn) {
+      editBtn.style.display = 'inline-flex';
+    }
+    
+    // Перенаправляем на URL без edit=1
+    const url = new URL(window.location);
+    url.searchParams.delete('edit');
+    window.history.replaceState({}, '', url);
+    
+    // Обновляем состояние контекста
+    this.context.state.editMode = false;
+    
+    // Обновляем UI
+    this.updateUI(this.context.state);
+    
+    console.log('✅ Вышли из режима редактирования');
+  }
+
+  // Функция для показа уведомления о режиме
+  showModeNotification(mode) {
+    const message = mode === 'edit' ? 
+      '✏️ Режим редактирования - можно изменять посещаемость' : 
+      '👁️ Режим просмотра - данные защищены от изменений';
+    
+    this.showNotification(message, mode === 'edit' ? 'warning' : 'success');
+  }
+
+  showNotification(message, type = 'info') {
+    const notification = this.elements.notification;
+    
+    if (!notification) {
+      console.log('📢 Notification:', message);
+      return;
+    }
+    
+    notification.textContent = message;
+    notification.className = `notification ${type}`;
+    notification.classList.add('show');
+
+    setTimeout(() => {
+      notification.classList.remove('show');
+    }, 4000);
+  }
+}
+
+// Глобальный экземпляр приложения
+window.UnifiedJournal = null;
+
+// Навигация по месяцам
+function navigateToMonth(value) {
+  const [year, month] = value.split('-');
+  const editParam = window.UnifiedJournal && window.UnifiedJournal.context.state.editMode ? '&edit=1' : '';
+  window.location.href = `?year=${year}&month=${month}${editParam}`;
+}
+
+// Инициализация при загрузке DOM
+document.addEventListener('DOMContentLoaded', function() {
+  try {
+    // Создаем приложение
+    window.UnifiedJournal = new UnifiedJournalApp();
+    
+    // Определяем режим редактирования по наличию индикатора
+    const editModeIndicator = document.querySelector('.edit-mode-indicator');
+    if (editModeIndicator) {
+      window.UnifiedJournal.context.state.editMode = true;
+      console.log('🔥 Найден индикатор режима редактирования');
+      
+      // Показываем уведомление о режиме редактирования при загрузке
+      setTimeout(() => {
+        window.UnifiedJournal.showModeNotification('edit');
+      }, 1000);
+    } else {
+      console.log('🔥 Индикатор режима редактирования НЕ найден');
+      
+      // Показываем уведомление о режиме просмотра при загрузке
+      setTimeout(() => {
+        window.UnifiedJournal.showModeNotification('view');
+      }, 1000);
+    }
+    
+    console.log('✅ Журнал инициализирован, режим редактирования:', window.UnifiedJournal.context.state.editMode);
+    
+    // Дополнительная проверка через 2 секунды
+    setTimeout(() => {
+      console.log('🔥 Проверка через 2 секунды:');
+      console.log('🔥 Edit mode:', window.UnifiedJournal.context.state.editMode);
+      console.log('🔥 Чекбоксы:', document.querySelectorAll('.attendance-checkbox').length);
+      console.log('🔥 Wrappers:', document.querySelectorAll('.attendance-checkbox-wrapper').length);
+      
+      // Проверяем состояние первого чекбокса
+      const firstCheckbox = document.querySelector('.attendance-checkbox');
+      if (firstCheckbox) {
+        console.log('🔥 Первый чекбокс:', {
+          checked: firstCheckbox.checked,
+          disabled: firstCheckbox.disabled,
+          hasAttribute: firstCheckbox.hasAttribute('checked')
+        });
+      }
+    }, 2000);
+  } catch (error) {
+    console.error('❌ Ошибка инициализации:', error);
+    return;
+  }
+});
+</script>
+
+{% endblock %}

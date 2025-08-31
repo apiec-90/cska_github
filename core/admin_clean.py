@@ -1,26 +1,14 @@
 # Импорт админок из модулей для лучшей организации кода
-# Прямой импорт из модулей для избежания циклических импортов
-from .admin.base import *
-from .admin.user_admins import *
-from .admin.group_admins import *
-from .admin.other_admins import *
+from .admin import *
 
-# Модульная архитектура админок:
-# - Trainer, Parent, Athlete, Staff: core.admin.user_admins
-# - TrainingGroup и другие: core.admin.group_admins
-# - Остальные модели: core.admin.other_admins
-# 
-# Дублирующие регистрации удалены для предотвращения конфликтов URL
-# Все основные админские классы теперь находятся в соответствующих модулях
-
-# This file now serves as the main entry point that imports all admin modules
-# while avoiding duplicate registrations that were causing URL resolution errors
+# Остальной код admin.py временно перемещен в модули
+# Здесь остаются только URL patterns для регистрации пользователей
 
 from django.views import View
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils.decorators import method_decorator
 from django.shortcuts import render, redirect
-from django.urls import reverse, path
+from django.urls import reverse
 from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.contrib.auth.models import User
@@ -135,8 +123,10 @@ class Step2RegistrationView(RegistrationAdminView):
             'opts': User._meta,
         })
 
-
 # Добавляем URL patterns для регистрации к существующим админкам
+from django.urls import path
+
+# Для добавления URL patterns к админке пользователей
 def get_registration_urls():
     """Возвращает URL patterns для процесса регистрации"""
     return [
@@ -144,3 +134,9 @@ def get_registration_urls():
         path('register/step2/<int:draft_id>/', Step2RegistrationView.as_view(), name='register_step2'),
         path('register/done/', lambda request: render(request, 'admin/core/registration/done.html'), name='register_done'),
     ]
+
+
+# Note: TrainerAdmin, ParentAdmin, AthleteAdmin are now handled by core.admin.user_admins module
+# to avoid duplicate registrations which were causing URL resolution errors
+
+# All other admin classes continue below from the original file...

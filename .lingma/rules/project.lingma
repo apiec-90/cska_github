@@ -1,0 +1,284 @@
+# Django Project Rules - CSKA Training Management System
+# Правила разработки для системы управления тренировками ЦСКА
+
+## ОБЩИЕ ПРАВИЛА ПРОЕКТА
+
+### Архитектура
+- Использовать Django MTV паттерн строго
+- Views имеют приоритет над Django Admin при конфликтах
+- Кастомные views для сложной логики вместо переопределения admin методов
+- Сигналы только для простых событий, сложную логику в views/services
+- Миграции создавать только через makemigrations, не вручную
+
+### Безопасность
+- Всегда валидировать пользовательский ввод в forms.py
+- Использовать Django CSRF защиту во всех формах
+- Проверять права доступа в каждом view через decorators или mixins
+- Никогда не передавать пароли в plain text
+- Использовать только prepared statements для SQL запросов
+
+## МОДЕЛИ (models.py)
+
+### Структура
+- Наследовать от models.Model
+- Meta класс в конце каждой модели
+- __str__ метод обязателен для всех моделей
+- Использовать related_name для ForeignKey и ManyToMany
+- Добавлять help_text для сложных полей
+
+### Поля
+- CharField с max_length обязательно
+- TextField для длинного текста
+- DateTimeField с auto_now_add для created_at
+- BooleanField с default значением
+- ImageField только с upload_to параметром
+
+### Примеры:
+```python
+class Athlete(models.Model):
+    first_name = models.CharField(max_length=100, help_text="Имя спортсмена")  # Имя атлета
+    email = models.EmailField(unique=True)  # Уникальный email
+    created_at = models.DateTimeField(auto_now_add=True)  # Дата создания записи
+    
+    class Meta:
+        verbose_name = "Спортсмен"
+        verbose_name_plural = "Спортсмены"
+        ordering = ['last_name', 'first_name']  # Сортировка по фамилии
+    
+    def __str__(self):
+        return f"{self.first_name} {self.last_name}"
+```
+
+## VIEWS (views.py)
+
+### Приоритет views над admin
+- Для сложных форм создавать кастомные views
+- Использовать CBV (Class-Based Views) для CRUD операций
+- FBV (Function-Based Views) для простых операций
+- Всегда redirect после POST запроса
+
+### Обработка форм
+- Валидация в clean методах форм
+- Использовать form.is_valid() перед сохранением
+- Обработка ошибок через messages framework
+
+### Примеры:
+```python
+class AthleteCreateView(CreateView):
+    model = Athlete
+    form_class = AthleteForm
+    template_name = 'core/athlete/create.html'
+    success_url = reverse_lazy('athlete_list')  # Редирект после успешного создания
+    
+    def form_valid(self, form):
+        form.instance.created_by = self.request.user  # Устанавливаем создателя
+        messages.success(self.request, 'Спортсмен успешно добавлен')
+        return super().form_valid(form)
+```
+
+## ADMIN (admin.py)
+
+### Конфигурация
+- Использовать admin только для простого CRUD
+- Сложную логику выносить в views
+- Кастомизировать через list_display, list_filter, search_fields
+- Inline редактирование для связанных моделей
+
+### Примеры:
+```python
+@admin.register(Athlete)
+class AthleteAdmin(admin.ModelAdmin):
+    list_display = ['first_name', 'last_name', 'group', 'created_at']  # Отображение в списке
+    list_filter = ['group', 'created_at']  # Фильтры в боковой панели
+    search_fields = ['first_name', 'last_name', 'email']  # Поиск по полям
+    readonly_fields = ['created_at']  # Поля только для чтения
+```
+
+## ФОРМЫ (forms.py)
+
+### Валидация
+- Использовать clean_<field_name> для валидации отдельных полей
+- clean() метод для валидации связанных полей
+- Кастомные виджеты через widgets
+
+### Примеры:
+```python
+class AthleteForm(forms.ModelForm):
+    class Meta:
+        model = Athlete
+        fields = ['first_name', 'last_name', 'email', 'phone']
+        widgets = {
+            'phone': forms.TextInput(attrs={'placeholder': '+7 (999) 123-45-67'})  # Подсказка для телефона
+        }
+    
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        if Athlete.objects.filter(email=email).exists():  # Проверка уникальности email
+            raise forms.ValidationError("Атлет с таким email уже существует")
+        return email
+```
+
+## ШАБЛОНЫ (templates/)
+
+### Структура
+- Наследование от base.html
+- Использовать {% load %} для кастомных тегов
+- Группировать шаблоны по приложениям
+- CSRF токен во всех формах
+
+### Примеры:
+```html
+{% extends 'admin/base.html' %}
+{% load custom_filters %}
+
+{% block content %}
+<form method="post">
+    {% csrf_token %}  <!-- Обязательная защита CSRF -->
+    {{ form.as_p }}
+    <button type="submit">Сохранить</button>
+</form>
+{% endblock %}
+```
+
+## НАСТРОЙКИ (settings.py)
+
+### Безопасность
+- DEBUG = False в продакшене
+- ALLOWED_HOSTS настроить для продакшена
+- SECRET_KEY в переменных окружения
+- Использовать HTTPS в продакшене
+
+### База данных
+- PostgreSQL для продакшена
+- Подключение через переменные окружения
+- Настройка пула соединений
+
+## МИГРАЦИИ
+
+### Правила
+- Всегда делать backup перед миграцией
+- Проверять миграции на тестовых данных
+- Не редактировать существующие миграции
+- Использовать data migrations для изменения данных
+
+## ТЕСТИРОВАНИЕ
+
+### Структура
+- Тесты в tests.py или tests/ пакете
+- Покрытие критичной функциональности
+- Использовать TestCase для тестов с БД
+- Mock внешние сервисы
+
+## ПРОИЗВОДИТЕЛЬНОСТЬ
+
+### Оптимизация запросов
+- Использовать select_related для ForeignKey
+- prefetch_related для ManyToMany
+- Избегать N+1 проблем
+- Индексы для часто используемых полей
+
+### Кеширование
+- Redis для сессий и кеша
+- Кеширование тяжелых запросов
+- Template fragment caching
+
+## ЛИНТЕРЫ И СТИЛЬ
+
+### Python
+- flake8 для проверки стиля
+- black для форматирования
+- isort для импортов
+- mypy для типизации
+
+### Правила именования
+- snake_case для переменных и функций
+- PascalCase для классов
+- UPPER_CASE для констант
+- Комментарии на русском после #
+
+## DEPLOYMENT
+
+### Требования
+- gunicorn как WSGI сервер
+- nginx как reverse proxy
+- PostgreSQL как основная БД
+- Redis для кеша и сессий
+- Логирование в файлы
+
+### Переменные окружения
+- DATABASE_URL
+- SECRET_KEY
+- DEBUG
+- ALLOWED_HOSTS
+- REDIS_URL
+
+## КОМАНДЫ УПРАВЛЕНИЯ
+
+### Расположение
+- Все команды в core/management/commands/
+- Наследование от BaseCommand
+- Обработка аргументов через add_arguments
+- Логирование действий
+
+### Примеры:
+```python
+class Command(BaseCommand):
+    help = 'Создание тестовых данных для спортсменов'  # Описание команды
+    
+    def add_arguments(self, parser):
+        parser.add_argument('--count', type=int, default=10)  # Аргумент количества
+    
+    def handle(self, *args, **options):
+        count = options['count']
+        # Логика создания данных
+        self.stdout.write(f'Создано {count} спортсменов')  # Вывод результата
+```
+
+## СИГНАЛЫ (signals.py)
+
+### Использование
+- Только для простых операций
+- pre_save/post_save для автоматических действий
+- Избегать сложной логики в сигналах
+- Всегда использовать sender параметр
+
+### Примеры:
+```python
+@receiver(post_save, sender=Athlete)
+def create_athlete_profile(sender, instance, created, **kwargs):
+    if created:  # Только при создании нового атлета
+        # Простая логика создания профиля
+        AthleteProfile.objects.create(athlete=instance)
+```
+
+## БЕЗОПАСНОСТЬ ДАННЫХ
+
+### Валидация
+- Никогда не доверять пользовательскому вводу
+- Валидация на уровне модели и формы
+- Санитизация HTML контента
+- Проверка размера загружаемых файлов
+
+### Аутентификация
+- Использовать Django встроенную аутентификацию
+- Кастомные permissions для сложных ролей
+- Logout при неактивности
+- Защита админки дополнительными правами
+
+## ЛОГИРОВАНИЕ
+
+### Настройка
+- Отдельные логи для разных уровней
+- Ротация логов по размеру/времени
+- Логирование ошибок и критичных операций
+- Не логировать чувствительные данные
+
+## МОНИТОРИНГ
+
+### Метрики
+- Время ответа views
+- Количество запросов к БД
+- Использование памяти
+- Ошибки в логах
+
+Эти правила обеспечивают качественную разработку Django приложения с учетом безопасности, производительности и поддерживаемости кода.
