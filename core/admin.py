@@ -2087,6 +2087,7 @@ class TrainingGroupAdmin(admin.ModelAdmin):
             path("<int:group_id>/children/", self.admin_site.admin_view(self.children_view), name="core_traininggroup_children"),
             path("<int:group_id>/schedule/", self.admin_site.admin_view(self.schedule_view), name="core_traininggroup_schedule"),
             path("<int:group_id>/journal/", self.admin_site.admin_view(self.journal_view), name="core_traininggroup_journal"),
+            path("<int:group_id>/journal/enhanced/", self.admin_site.admin_view(self.journal_enhanced_view), name="core_traininggroup_journal_enhanced"),
         ]
         return extra + urls
 
@@ -2478,6 +2479,206 @@ class TrainingGroupAdmin(admin.ModelAdmin):
             "today_session": today_session,
         }
         return TemplateResponse(request, "admin/core/traininggroup/journal.html", ctx)
+
+    def journal_enhanced_view(self, request, group_id):
+        """Улучшенная версия журнала посещаемости с красивым интерфейсом"""
+        group = get_object_or_404(TrainingGroup, pk=group_id)
+        if not self.has_view_permission(request, group):
+            raise PermissionDenied
+
+        ensure_month_sessions_for_group(group)
+        
+        today = timezone.localdate()
+        
+        if request.method == "POST":
+            if not self.has_change_permission(request, group):
+                raise PermissionDenied
+            
+            # Используем ту же логику обработки AJAX запросов, что и в обычном журнале
+            # Обработка AJAX запроса для изменения посещаемости
+            if request.POST.get('action') == 'toggle_attendance':
+                from django.http import JsonResponse
+                import logging
+                logger = logging.getLogger(__name__)
+                
+                try:
+                    logger.info(f"Toggle attendance request: {request.POST}")
+                    
+                    session_id = int(request.POST.get('session_id'))
+                    athlete_id = int(request.POST.get('athlete_id'))
+                    is_present = request.POST.get('present') == 'true'
+                    
+                    logger.info(f"Parsed data: session_id={session_id}, athlete_id={athlete_id}, is_present={is_present}")
+                    
+                    session = get_object_or_404(TrainingSession, pk=session_id, training_group=group)
+                    athlete = get_object_or_404(Athlete, pk=athlete_id)
+                    
+                    logger.info(f"Found session: {session}, athlete: {athlete}")
+                    
+                    # Проверяем, что сессия не закрыта и не в будущем
+                    if session.is_closed:
+                        return JsonResponse({'success': False, 'error': 'Сессия уже закрыта'})
+                    
+                    if session.date > today:
+                        return JsonResponse({'success': False, 'error': 'Нельзя отмечать будущие тренировки'})
+                    
+                    # Получаем staff пользователя (если есть)
+                    try:
+                        marked_by_staff = request.user.staff
+                    except:
+                        # Если у пользователя нет профиля staff, ищем любого активного staff
+                        marked_by_staff = Staff.objects.filter(user__is_active=True).first()
+                    
+                    logger.info(f"Marked by staff: {marked_by_staff}")
+                    
+                    # Получаем или создаем/удаляем запись посещаемости
+                    attendance, created = AttendanceRecord.objects.get_or_create(
+                        session=session,
+                        athlete=athlete,
+                        defaults={
+                            'was_present': is_present,
+                            'marked_by': marked_by_staff
+                        }
+                    )
+                    
+                    logger.info(f"Attendance record: {attendance}, created: {created}")
+                    
+                    if not created:
+                        if is_present:
+                            attendance.was_present = True
+                            attendance.save()
+                            logger.info("Updated attendance to present")
+                        else:
+                            attendance.delete()
+                            logger.info("Deleted attendance record")
+                    elif not is_present:
+                        attendance.delete()
+                        logger.info("Deleted newly created attendance record")
+                    
+                    return JsonResponse({'success': True, 'message': f'Посещаемость {"отмечена" if is_present else "убрана"}'})
+                    
+                except (ValueError, TrainingSession.DoesNotExist, Athlete.DoesNotExist) as e:
+                    logger.error(f"Error in toggle_attendance: {e}")
+                    return JsonResponse({'success': False, 'error': str(e)})
+                except Exception as e:
+                    logger.error(f"Unexpected error in toggle_attendance: {e}")
+                    return JsonResponse({'success': False, 'error': f'Внутренняя ошибка сервера: {str(e)}'})
+            
+            # Обработка массового обновления посещаемости
+            if request.POST.get('action') == 'bulk_update_attendance':
+                from django.http import JsonResponse
+                import json
+                import logging
+                logger = logging.getLogger(__name__)
+                
+                try:
+                    changes_json = request.POST.get('changes')
+                    changes = json.loads(changes_json)
+                    
+                    logger.info(f"Bulk update attendance: {len(changes)} changes")
+                    
+                    # Получаем staff пользователя
+                    try:
+                        marked_by_staff = request.user.staff
+                    except:
+                        marked_by_staff = Staff.objects.filter(user__is_active=True).first()
+                    
+                    updated_count = 0
+                    
+                    for change in changes:
+                        session_id = change['session_id']
+                        athlete_id = change['athlete_id']
+                        is_present = change['present']
+                        
+                        try:
+                            session = TrainingSession.objects.get(pk=session_id, training_group=group)
+                            athlete = Athlete.objects.get(pk=athlete_id)
+                            
+                            # Проверяем ограничения
+                            if session.is_closed or session.date > today:
+                                continue
+                            
+                            if is_present:
+                                attendance, created = AttendanceRecord.objects.get_or_create(
+                                    session=session,
+                                    athlete=athlete,
+                                    defaults={
+                                        'was_present': True,
+                                        'marked_by': marked_by_staff
+                                    }
+                                )
+                                if not created:
+                                    attendance.was_present = True
+                                    attendance.save()
+                            else:
+                                AttendanceRecord.objects.filter(session=session, athlete=athlete).delete()
+                            
+                            updated_count += 1
+                            
+                        except (TrainingSession.DoesNotExist, Athlete.DoesNotExist):
+                            continue
+                    
+                    logger.info(f"Successfully updated {updated_count} attendance records")
+                    
+                    return JsonResponse({
+                        'success': True, 
+                        'message': f'Сохранено {updated_count} записей',
+                        'updated_count': updated_count
+                    })
+                    
+                except (json.JSONDecodeError, KeyError, ValueError) as e:
+                    logger.error(f"Error in bulk_update_attendance: {e}")
+                    return JsonResponse({'success': False, 'error': f'Ошибка данных: {str(e)}'})
+                except Exception as e:
+                    logger.error(f"Unexpected error in bulk_update_attendance: {e}")
+                    return JsonResponse({'success': False, 'error': f'Внутренняя ошибка сервера: {str(e)}'})
+
+        # Находим сегодняшнюю активную сессию
+        today_session = TrainingSession.objects.filter(
+            training_group=group, date=today, is_closed=False
+        ).first()
+
+        # Все сессии текущего месяца
+        first = today.replace(day=1)
+        next_first = (first.replace(year=first.year+1, month=1, day=1)
+                      if first.month==12 else first.replace(month=first.month+1, day=1))
+        sessions = (TrainingSession.objects
+                    .filter(training_group=group, date__gte=first, date__lt=next_first)
+                    .order_by("date"))
+
+        # Все дети группы
+        children = (Athlete.objects
+                    .filter(id__in=AthleteTrainingGroup.objects
+                            .filter(training_group=group)
+                            .values_list("athlete_id", flat=True))
+                    .order_by("last_name", "first_name"))
+
+        # Записи посещаемости - только те, кто был отмечен как присутствующий
+        attendance_records = (AttendanceRecord.objects
+                              .filter(session__training_group=group, 
+                                     session__date__gte=first, 
+                                     session__date__lt=next_first,
+                                     was_present=True)
+                              .select_related("athlete", "session"))
+
+        # Группируем по сессиям
+        present = {}
+        for record in attendance_records:
+            session_id = record.session.id
+            if session_id not in present:
+                present[session_id] = set()
+            present[session_id].add(record.athlete.id)
+
+        ctx = {
+            "title": f"Журнал посещаемости: {group.name}",
+            "group": group,
+            "sessions": sessions,
+            "children": children,
+            "present": present,
+            "today": today,
+            "today_session": today_session,
+        }
+        return TemplateResponse(request, "admin/core/traininggroup/journal_enhanced.html", ctx)
 
     def create_wizard_view(self, request):
         """Мастер создания группы - шаг 1: Данные группы"""

@@ -6,58 +6,69 @@
 /* Простые стили для кликабельных ячеек */
 .attendance-table {
   width: 100%;
-  border-collapse: collapse;
+    border-collapse: collapse;
   margin: 20px 0;
 }
 
 .attendance-table th,
 .attendance-table td {
   border: 1px solid #ddd;
-  padding: 8px;
-  text-align: center;
+  padding: 6px;
+    text-align: center;
+  font-size: 13px;
 }
 
 .attendance-table th {
   background: #f5f5f5;
+  font-size: 11px;
+  padding: 8px 4px;
 }
 
 .athlete-name {
-  text-align: left;
+    text-align: left;
   font-weight: bold;
-  min-width: 150px;
+  min-width: 140px;
+  font-size: 12px;
+  padding: 8px 10px;
 }
 
 /* ГЛАВНОЕ - кликабельные ячейки */
 .clickable-cell {
-  cursor: pointer;
-  width: 50px;
-  height: 50px;
-  font-size: 20px;
+    cursor: pointer;
+  width: 35px;
+  height: 35px;
+  font-size: 16px;
   background: #fff;
   transition: all 0.2s;
-  user-select: none;
-}
-
+    user-select: none;
+  vertical-align: middle;
+  }
+  
 .clickable-cell:hover {
   background: #e8f5e8;
-  transform: scale(1.1);
+    transform: scale(1.05);
+  border: 2px solid #4CAF50;
 }
 
 .clickable-cell.present {
   color: #4CAF50;
+  background: rgba(76, 175, 80, 0.1);
 }
 
 .clickable-cell.absent {
   color: #f44336;
+  background: rgba(244, 67, 54, 0.05);
 }
 
 .status-info {
-  margin: 20px 0;
-  padding: 10px;
+  margin: 15px 0;
+  padding: 8px 12px;
   background: #f0f8ff;
   border-radius: 5px;
   text-align: center;
-}
+  font-size: 13px;
+  border: 1px solid #d1ecf1;
+  }
 </style>
 {% endblock %}
 
@@ -70,8 +81,8 @@
 <div class="status-info">
   <strong>Инструкция:</strong> Кликайте по ячейкам в таблице чтобы изменить посещаемость
   <br>
-  <span id="changes-info">Изменений: 0</span>
-  <button onclick="saveChanges()" style="margin-left: 20px; padding: 5px 15px;">Сохранить</button>
+  <span id="changes-info" style="font-weight: bold; color: #666;">Изменений: 0</span>
+  <button onclick="saveChanges()" style="margin-left: 15px; padding: 6px 12px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">💾 Сохранить</button>
 </div>
 
 <table class="attendance-table">
@@ -79,29 +90,29 @@
     <tr>
       <th class="athlete-name">Спортсмен</th>
       {% for session in sessions %}
-      <th>
-        {{ session.date|date:"d.m" }}<br>
-        <small>{{ session.start_time }}</small>
-      </th>
+       <th style="min-width: 45px;">
+         <div style="font-weight: bold; margin-bottom: 2px;">{{ session.date|date:"d.m" }}</div>
+         <div style="font-size: 9px; color: #666;">{{ session.start_time|time:"H:i" }}</div>
+        </th>
       {% endfor %}
     </tr>
   </thead>
   <tbody>
     {% for athlete in children %}
-    <tr>
+      <tr>
       <td class="athlete-name">{{ athlete.last_name }} {{ athlete.first_name }}</td>
-      {% for session in sessions %}
-      {% with session_present=present|lookup:session.id %}
+        {% for session in sessions %}
+          {% with session_present=present|lookup:session.id %}
       <td class="clickable-cell {% if session_present and athlete.id in session_present %}present{% else %}absent{% endif %}"
           data-session="{{ session.id }}"
           data-athlete="{{ athlete.id }}"
           data-present="{% if session_present and athlete.id in session_present %}true{% else %}false{% endif %}"
           onclick="toggleCell(this)">
-        {% if session_present and athlete.id in session_present %}✅{% else %}❌{% endif %}
-      </td>
-      {% endwith %}
-      {% endfor %}
-    </tr>
+                    {% if session_present and athlete.id in session_present %}✅{% else %}❌{% endif %}
+          </td>
+          {% endwith %}
+        {% endfor %}
+      </tr>
     {% endfor %}
   </tbody>
 </table>
@@ -133,7 +144,7 @@ function toggleCell(cell) {
       athlete_id: parseInt(athleteId),
       present: newPresent
     };
-  } else {
+    } else {
     changes.push({
       key: changeKey,
       session_id: parseInt(sessionId),
@@ -156,27 +167,27 @@ function saveChanges() {
   
   console.log('Сохранение изменений:', changes);
   
-  const formData = new FormData();
+    const formData = new FormData();
   formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
-  formData.append('action', 'bulk_update_attendance');
+    formData.append('action', 'bulk_update_attendance');
   formData.append('changes', JSON.stringify(changes));
-  
-  fetch(window.location.href, {
-    method: 'POST',
-    body: formData
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
       alert(`✅ Сохранено ${data.updated_count} записей`);
       changes = [];
       document.getElementById('changes-info').textContent = 'Изменений: 0';
-    } else {
+        } else {
       alert(`❌ Ошибка: ${data.error}`);
-    }
-  })
-  .catch(error => {
-    console.error('Ошибка:', error);
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка:', error);
     alert('❌ Ошибка сохранения');
   });
 }
