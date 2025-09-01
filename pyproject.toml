@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cska-django-supabase"
+version = "0.1.0"
+description = "CSKA Django CRM with Supabase integration"
+dependencies = [
+    "Django>=4.2.0",
+    "psycopg2-binary>=2.9.0",
+]
+
+[tool.basedpyright]
+include = ["core", "cska_django_supabase"]
+exclude = ["**/migrations", "**/venv", "**/node_modules", "**/__pycache__", "**/.*"]
+pythonVersion = "3.11"
+typeCheckingMode = "basic"
+# Django ORM dynamically adds 'objects' manager and 'DoesNotExist' exception
+# These are not recognized by static type checkers
+reportAttributeAccessIssue = false
+reportUnknownMemberType = false
+reportMissingTypeStubs = false
+reportUnknownVariableType = false
+strictListInference = true
+strictDictionaryInference = true
+strictSetInference = true
+analyzeUnannotatedFunctions = false
+strictParameterNoneValue = true
+deprecateTypingAliases = true

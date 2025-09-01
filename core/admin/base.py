@@ -1,66 +1,174 @@
 """
-Базовые классы для админок Django.
-Устраняют дублирование кода между различными админками.
+Base classes for Django admin interfaces.
+Eliminate code duplication between different admin interfaces.
 """
+from typing import Any, Optional, List
 from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin
 from django.db import models
 from django.utils.html import format_html
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.shortcuts import get_object_or_404
+from django.contrib.contenttypes.models import ContentType
+from django.contrib import messages
+from django.urls import URLPattern, path
 import os
 import uuid
 from django.conf import settings
-from django.contrib import messages
-from django.http import HttpResponseRedirect
-from django.shortcuts import get_object_or_404
-from django.contrib.contenttypes.models import ContentType
 
-# Регистрируем стандартные Django модели
+# Create custom User admin with additional URLs for registration
+class UserRoleListFilter(admin.SimpleListFilter):
+    """Custom filter for user roles in admin"""
+    title = 'роль пользователя'
+    parameter_name = 'user_role'
+    
+    def lookups(self, request, model_admin):
+        return (
+            ('athlete', '🏃 Спортсмен'),
+            ('parent', '👨‍👩‍👧‍👦 Родитель'),
+            ('trainer', '🏋️ Тренер'),
+            ('staff', '💼 Сотрудник'),
+            ('admin', '🔑 Администратор'),
+            ('undefined', '❓ Не определено'),
+        )
+    
+    def queryset(self, request, queryset):
+        from core.models import Athlete, Parent, Trainer, Staff
+        
+        if self.value() == 'athlete':
+            return queryset.filter(athlete__isnull=False)
+        elif self.value() == 'parent':
+            return queryset.filter(parent__isnull=False)
+        elif self.value() == 'trainer':
+            return queryset.filter(trainer__isnull=False)
+        elif self.value() == 'staff':
+            return queryset.filter(staff__isnull=False)
+        elif self.value() == 'admin':
+            return queryset.filter(is_superuser=True)
+        elif self.value() == 'undefined':
+            return queryset.filter(
+                athlete__isnull=True,
+                parent__isnull=True,
+                trainer__isnull=True,
+                staff__isnull=True,
+                is_superuser=False
+            )
+        return queryset
+
+
+class CustomUserAdmin(UserAdmin):
+    """Extend standard UserAdmin to add registration URLs and role display"""
+    
+    # Add role column to the user list display
+    list_display = UserAdmin.list_display + ('get_user_role', 'get_groups_display')
+    
+    # Add custom filters
+    list_filter = UserAdmin.list_filter + (UserRoleListFilter,)
+    
+    def get_queryset(self, request):
+        """Optimize queryset to prevent N+1 queries"""
+        qs = super().get_queryset(request)
+        return qs.select_related('athlete', 'parent', 'trainer', 'staff').prefetch_related('groups')
+    
+    def get_user_role(self, obj: User) -> str:
+        """Get user's role based on their profile"""
+        from core.models import Athlete, Parent, Trainer, Staff
+        
+        try:
+            if hasattr(obj, 'athlete') or Athlete.objects.filter(user=obj).exists():
+                return "🏃 Спортсмен"
+            elif hasattr(obj, 'parent') or Parent.objects.filter(user=obj).exists():
+                return "👨‍👩‍👧‍👦 Родитель"
+            elif hasattr(obj, 'trainer') or Trainer.objects.filter(user=obj).exists():
+                return "🏋️ Тренер"
+            elif hasattr(obj, 'staff') or Staff.objects.filter(user=obj).exists():
+                staff = Staff.objects.filter(user=obj).first()
+                if staff:
+                    return f"💼 {staff.get_role_display()}"
+                return "💼 Сотрудник"
+            elif obj.is_superuser:
+                return "🔑 Администратор"
+            else:
+                return "❓ Не определено"
+        except Exception:
+            return "❓ Ошибка"
+    
+    get_user_role.short_description = "Роль"
+    get_user_role.admin_order_field = 'username'
+    
+    def get_groups_display(self, obj: User) -> str:
+        """Display user's Django groups"""
+        groups = obj.groups.all()
+        if groups:
+            return ", ".join([group.name for group in groups])
+        return "—"
+    
+    get_groups_display.short_description = "Группы"
+    
+    def get_urls(self) -> List[URLPattern]:
+        """Add URLs for user registration"""
+        urls = super().get_urls()
+        from core.admin_registration import (
+            Step1RegistrationView, Step2RegistrationView, Step3RegistrationView,
+            register_done_view, register_cancel_view
+        )
+        
+        custom_urls = [
+            path('register/', Step1RegistrationView.as_view(), name='register_step1'),
+            path('register/step2/<int:draft_id>/', Step2RegistrationView.as_view(), name='register_step2'),
+            path('register/step3/<int:draft_id>/', Step3RegistrationView.as_view(), name='register_step3'),
+            path('register/done/', register_done_view, name='register_done'),
+            path('register/cancel/', register_cancel_view, name='register_cancel'),
+        ]
+        return custom_urls + urls
+
+# Register our custom admin
 admin.site.unregister(User)
-admin.site.register(User, UserAdmin)
+admin.site.register(User, CustomUserAdmin)
 
 
 class BasePersonAdmin(admin.ModelAdmin):
     """
-    Базовый класс для админок пользователей (Trainer, Staff, Parent, Athlete).
-    Содержит общие методы для работы с персональными данными.
+    Base class for user admin interfaces (Trainer, Staff, Parent, Athlete).
+    Contains common methods for working with personal data.
     """
     
-    # Общие поля для всех персональных админок
-    readonly_fields = ['user']  # User только для чтения при редактировании
-    exclude = ('user',)  # Убираем user из формы
+    # Common fields for all personal admin interfaces
+    readonly_fields = ['user']  # User is read-only when editing
+    exclude = ('user',)  # Remove user from form
     
-    def get_full_name(self, obj):
-        """Получить полное имя пользователя (универсальный метод)"""
+    def get_full_name(self, obj: Any) -> str:
+        """Get user's full name (universal method)"""
         first_name = (getattr(obj, 'first_name', None) or obj.user.first_name or "")
         last_name = (getattr(obj, 'last_name', None) or obj.user.last_name or "")
         return f"{last_name} {first_name}".strip() or obj.user.username
-    get_full_name.short_description = "ФИО"
+    get_full_name.short_description = "Full Name"
     
-    def get_phone(self, obj):
-        """Получить телефон пользователя"""
+    def get_phone(self, obj: Any) -> str:
+        """Get user's phone number"""
         return getattr(obj, 'phone', None) or "—"
-    get_phone.short_description = "Телефон"
+    get_phone.short_description = "Phone"
     
-    def get_active_status(self, obj):
-        """Получить статус активности пользователя"""
+    def get_active_status(self, obj: Any) -> str:
+        """Get user's activity status"""
         if obj.user.is_active:
-            return "Активен"
+            return "Active"
         else:
-            return "Неактивен"
-    get_active_status.short_description = "Статус"
+            return "Inactive"
+    get_active_status.short_description = "Status"
     
-    def get_queryset(self, request):
-        """Оптимизация запросов - предзагружаем связанного пользователя"""
+    def get_queryset(self, request: HttpRequest) -> models.QuerySet:
+        """Optimize queries - preload related user"""
         qs = super().get_queryset(request)
         return qs.select_related('user')
     
-    def get_form(self, request, obj=None, **kwargs):
-        """Инициализируем форму данными из User если поля пустые"""
-        form = super().get_form(request, obj, **kwargs)
+    def get_form(self, request: HttpRequest, obj: Optional[Any] = None, change: bool = False, **kwargs: Any) -> Any:
+        """Initialize form with User data if profile fields are empty"""
+        form = super().get_form(request, obj, change=change, **kwargs)
         
         if obj and obj.user_id:
-            # Если поля профиля пустые, заполняем из User
+            # If profile fields are empty, fill from User
             if not getattr(obj, 'first_name', None) and obj.user.first_name:
                 obj.first_name = obj.user.first_name
             if not getattr(obj, 'last_name', None) and obj.user.last_name:
@@ -68,11 +176,11 @@ class BasePersonAdmin(admin.ModelAdmin):
         
         return form
     
-    def save_model(self, request, obj, form, change):
-        """Синхронизируем ФИО между профилем и User"""
+    def save_model(self, request: HttpRequest, obj: Any, form: Any, change: bool) -> None:
+        """Synchronize names between profile and User"""
         super().save_model(request, obj, form, change)
         
-        # Синхронизируем ФИО с User если поля есть в объекте
+        # Sync names with User if fields exist in object
         if obj.user and hasattr(obj, 'first_name') and hasattr(obj, 'last_name'):
             user = obj.user
             user.first_name = obj.first_name or ""
@@ -82,13 +190,12 @@ class BasePersonAdmin(admin.ModelAdmin):
 
 class BaseDocumentMixin:
     """
-    Миксин для админок с поддержкой документов и аватаров.
-    Добавляет методы загрузки/удаления файлов.
+    Mixin for admin interfaces with document and avatar support.
+    Adds file upload/deletion methods.
     """
     
-    def get_urls(self):
-        """Добавляем URLs для загрузки документов"""
-        from django.urls import path
+    def get_urls(self) -> List[URLPattern]:
+        """Add URLs for document uploads"""
         urls = super().get_urls()
         info = self.model._meta.app_label, self.model._meta.model_name
         custom_urls = [
@@ -104,35 +211,36 @@ class BaseDocumentMixin:
         ]
         return custom_urls + urls
 
-    def upload_avatar(self, request, object_id):
-        """Универсальная загрузка аватара"""
+    def upload_avatar(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        """Universal avatar upload"""
         if request.method != 'POST':
             return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
+        # ... existing code ...
         
         file_obj = request.FILES.get('avatar')
         if not file_obj:
-            messages.error(request, 'Файл не выбран')
+            messages.error(request, 'File not selected')
             return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
         
         try:
             obj = self.model.objects.get(pk=object_id)
         except self.model.DoesNotExist:
-            messages.error(request, f'{self.model._meta.verbose_name} не найден')
+            messages.error(request, f'{self.model._meta.verbose_name} not found')
             return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
         
-        # Проверяем формат файла
+        # Check file format
         file_extension = file_obj.name.split('.')[-1].lower()
         allowed_extensions = ['jpg', 'jpeg', 'png', 'gif']
         if file_extension not in allowed_extensions:
-            messages.error(request, 'Недопустимый формат файла. Разрешены: JPG, PNG, GIF')
+            messages.error(request, 'Invalid file format. Allowed: JPG, PNG, GIF')
             return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
         
         try:
-            # Создаем уникальное имя файла
+            # Create unique filename
             model_name = self.model._meta.model_name
             file_name = f"{model_name}_{obj.id}_{uuid.uuid4().hex[:8]}.{file_extension}"
             
-            # Сохраняем файл
+            # Save file
             upload_path = os.path.join(settings.MEDIA_ROOT, 'avatars')
             os.makedirs(upload_path, exist_ok=True)
             
@@ -141,20 +249,20 @@ class BaseDocumentMixin:
                 for chunk in file_obj.chunks():
                     f.write(chunk)
             
-            # Удаляем старые аватары
+            # Delete old avatars
             self._delete_old_avatars(obj)
             
-            # Создаем запись в Document
+            # Create Document record
             self._create_avatar_document(obj, file_name, file_obj, request.user)
             
-            messages.success(request, 'Аватар успешно загружен')
+            messages.success(request, 'Avatar uploaded successfully')
         except Exception as e:
-            messages.error(request, f'Ошибка загрузки аватара: {e}')
+            messages.error(request, f'Avatar upload error: {e}')
         
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
     
-    def upload_document(self, request, object_id):
-        """Универсальная загрузка документа"""
+    def upload_document(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        """Universal document upload"""
         if request.method != 'POST':
             return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
         
@@ -192,36 +300,36 @@ class BaseDocumentMixin:
         
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
     
-    def delete_document(self, request, object_id):
-        """Универсальное удаление документа"""
+    def delete_document(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        """Universal document deletion"""
         if request.method != 'POST':
             return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
         
         document_id = request.POST.get('document_id')
         if not document_id:
-            messages.error(request, 'ID документа не указан')
+            messages.error(request, 'Document ID not specified')
             return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
         
         try:
             from core.models import Document
             document = Document.objects.get(pk=document_id)
             
-            # Удаляем физический файл
+            # Delete physical file
             self._delete_physical_file(document.file)
             
-            # Удаляем запись из БД
+            # Delete database record
             document.delete()
-            messages.success(request, 'Документ успешно удален')
+            messages.success(request, 'Document deleted successfully')
         except Exception as e:
-            messages.error(request, f'Ошибка удаления документа: {e}')
+            messages.error(request, f'Document deletion error: {e}')
         
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
     
-    def _delete_old_avatars(self, obj):
-        """Удалить старые аватары объекта"""
+    def _delete_old_avatars(self, obj: Any) -> None:
+        """Delete old object avatars"""
         from core.models import Document, DocumentType
         try:
-            avatar_type = DocumentType.objects.get(name='Аватар')
+            avatar_type = DocumentType.objects.get(name='Avatar')
             ct = ContentType.objects.get_for_model(self.model)
             old_avatars = Document.objects.filter(
                 content_type=ct, 
@@ -232,13 +340,13 @@ class BaseDocumentMixin:
                 self._delete_physical_file(avatar.file)
                 avatar.delete()
         except Exception:
-            pass  # Не критично если не удалось
+            pass  # Not critical if deletion fails
     
-    def _create_avatar_document(self, obj, file_name, file_obj, user):
-        """Создать запись Document для аватара"""
+    def _create_avatar_document(self, obj: Any, file_name: str, file_obj: Any, user: Any) -> None:
+        """Create Document record for avatar"""
         from core.models import Document, DocumentType
         
-        avatar_type, _ = DocumentType.objects.get_or_create(name='Аватар')
+        avatar_type, _ = DocumentType.objects.get_or_create(name='Avatar')
         ct = ContentType.objects.get_for_model(self.model)
         
         Document.objects.create(
@@ -249,21 +357,21 @@ class BaseDocumentMixin:
             file_type=file_obj.content_type,
             file_size=file_obj.size,
             uploaded_by=user,
-            comment='Загружен как аватар'
+            comment='Uploaded as avatar'
         )
     
-    def _create_document_record(self, obj, file_name, file_obj, comment, document_type_id, user):
-        """Создать запись Document для документа"""
+    def _create_document_record(self, obj: Any, file_name: str, file_obj: Any, comment: str, document_type_id: str, user: Any) -> None:
+        """Create Document record for document"""
         from core.models import Document, DocumentType
         
-        # Получаем или создаем тип документа
+        # Get or create document type
         if document_type_id:
             try:
                 doc_type = DocumentType.objects.get(pk=document_type_id)
             except DocumentType.DoesNotExist:
-                doc_type, _ = DocumentType.objects.get_or_create(name='Прочее')
+                doc_type, _ = DocumentType.objects.get_or_create(name='Other')
         else:
-            doc_type, _ = DocumentType.objects.get_or_create(name='Прочее')
+            doc_type, _ = DocumentType.objects.get_or_create(name='Other')
         
         ct = ContentType.objects.get_for_model(self.model)
         
@@ -278,10 +386,10 @@ class BaseDocumentMixin:
             comment=comment
         )
     
-    def _delete_physical_file(self, file_path):
-        """Удалить физический файл"""
+    def _delete_physical_file(self, file_path: str) -> None:
+        """Delete physical file"""
         try:
-            # Обрабатываем различные форматы путей
+            # Handle different path formats
             file_url = str(file_path)
             media_root = getattr(settings, 'MEDIA_ROOT', 'media')
             media_url = getattr(settings, 'MEDIA_URL', '/media/')
@@ -297,17 +405,23 @@ class BaseDocumentMixin:
             if os.path.exists(full_path):
                 os.remove(full_path)
         except Exception:
-            pass  # Не критично если файл не удалось удалить
+            pass  # Not critical if file deletion fails
 
 
 class BaseChangeFormMixin:
     """
-    Миксин для расширения changeform_view с дополнительными данными.
-    Добавляет общую логику для показа документов в формах редактирования.
+    Mixin for extending changeform_view with additional data.
+    Adds common logic for showing documents in edit forms.
     """
     
-    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
-        """Добавляем документы и типы документов в контекст"""
+    def changeform_view(
+        self, 
+        request: HttpRequest, 
+        object_id: Optional[str] = None, 
+        form_url: str = '', 
+        extra_context: Optional[dict[str, Any]] = None
+    ) -> HttpResponse:
+        """Add documents and document types to context"""
         extra_context = extra_context or {}
         documents = []
         doc_types = []
@@ -320,16 +434,16 @@ class BaseChangeFormMixin:
                 obj = self.model.objects.get(pk=object_id)
                 doc_types = DocumentType.objects.all().order_by('name')
                 
-                # Получаем документы объекта
+                # Get object documents
                 ct = ContentType.objects.get_for_model(self.model)
                 documents = Document.objects.filter(
                     content_type=ct,
                     object_id=obj.id
                 ).select_related('document_type', 'uploaded_by').order_by('-uploaded_at')
                 
-                # Ищем аватар
+                # Look for avatar
                 try:
-                    avatar_type = DocumentType.objects.get(name='Аватар')
+                    avatar_type = DocumentType.objects.get(name='Avatar')
                     avatar_doc = documents.filter(document_type=avatar_type).first()
                     if avatar_doc:
                         avatar_url = avatar_doc.file
@@ -339,7 +453,7 @@ class BaseChangeFormMixin:
             except self.model.DoesNotExist:
                 pass
         
-        # Добавляем данные в контекст с префиксом модели
+        # Add data to context with model prefix
         model_name = self.model._meta.model_name
         extra_context.update({
             f'{model_name}_documents': documents,

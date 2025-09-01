@@ -1,5 +1,6 @@
 from django.contrib.auth.models import Group, User
 from typing import Optional
+from django.contrib.auth.models import User, Group
 
 
 def assign_groups_for_registration(user: User, role: str, subrole: Optional[str] = None) -> None:
