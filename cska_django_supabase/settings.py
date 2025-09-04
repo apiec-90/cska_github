@@ -27,7 +27,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-key-change-in-product
 DEBUG = True
 
 # Настройки для localhost
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '*']
 
 
 # Application definition
@@ -233,3 +233,15 @@ JAZZMIN_UI_TWEAKS = {
         "success": "btn-success"
     }
 }
+
+# Настройки безопасности для разработки - отключаем HTTPS
+SECURE_SSL_REDIRECT = False
+SECURE_PROXY_SSL_HEADER = None
+SECURE_BROWSER_XSS_FILTER = False
+SECURE_CONTENT_TYPE_NOSNIFF = False
+SECURE_HSTS_SECONDS = 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_PRELOAD = False
+SECURE_REFERRER_POLICY = None
+SECURE_CROSS_ORIGIN_OPENER_POLICY = None
+SECURE_FRAME_DENY = False
