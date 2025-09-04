@@ -8,7 +8,11 @@ if defined _OLD_CODEPAGE (
     "%SystemRoot%\System32\chcp.com" 65001 > nul
 )
 
+<<<<<<< HEAD
 set VIRTUAL_ENV=C:\проекты\cska_django_supabase\venv
+=======
+set VIRTUAL_ENV=C:\проекты\CSKA\venv
+>>>>>>> bedbb2b1a87a3bede18d794b18be9309c5599d3e
 
 if not defined PROMPT set PROMPT=$P$G
 

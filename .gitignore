@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Django
 *.log
 *.pot
@@ -31,6 +32,14 @@ Thumbs.db
 staticfiles/
 
 # Python
+=======
+# Виртуальное окружение
+venv/
+env/
+
+# Python
+__pycache__/
+>>>>>>> bedbb2b1a87a3bede18d794b18be9309c5599d3e
 *.py[cod]
 *$py.class
 *.so
@@ -50,6 +59,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+<<<<<<< HEAD
 
 # Django migrations (опционально - раскомментируйте если не хотите отслеживать)
 # migrations/
@@ -92,3 +102,47 @@ celerybeat-schedule
 .mypy_cache/
 .dmypy.json
 dmypy.json
+=======
+# Django
+*.log
+db.sqlite3
+db.sqlite3-journal
+/media/
+/static/
+!static/
+/staticfiles/
+
+# Конфиденциальные файлы
+.env
+.env.local
+.env.production
+.env.staging
+local_settings.py
+
+# IDE / Редакторы
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Системные файлы
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Документы и временные файлы
+*.pdf
+*.xlsx
+*.docx
+!templates/**/*.pdf
+!static/**/*.pdf
+
+# Node.js локальная копия
+nodejs/
+nodejs/node.exe
+>>>>>>> bedbb2b1a87a3bede18d794b18be9309c5599d3e

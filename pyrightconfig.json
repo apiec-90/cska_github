@@ -1,0 +1,9 @@
+{
+    "pythonPath": "./venv/Scripts/python.exe",
+    "extraPaths": [
+        "./venv/Lib/site-packages"
+    ],
+    "typeCheckingMode": "basic",
+    "useLibraryCodeForTypes": true,
+    "autoImportCompletions": true
+} 

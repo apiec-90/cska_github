@@ -1,3 +1,35 @@
+<<<<<<< HEAD
 Django>=5.2.4
 psycopg2-binary>=2.9.9
 Pillow>=10.0.0 
+=======
+# Основные зависимости Django проекта
+Django==5.2.4
+python-dotenv==1.1.1
+
+# UI и стили
+django-tailwind==4.2.0
+
+# Экспорт файлов
+openpyxl==3.1.5
+reportlab==4.4.3
+weasyprint==66.0
+pandas==2.3.1
+
+# Базы данных
+psycopg2-binary==2.9.10
+
+# Фильтрация
+django-filter==24.3
+
+# Хранение файлов и AWS
+django-storages==1.14.6
+boto3==1.39.16
+supabase==1.2.0
+
+# Обработка изображений
+pillow==11.3.0
+
+# Разработка
+django-browser-reload==1.14.0
+>>>>>>> bedbb2b1a87a3bede18d794b18be9309c5599d3e

@@ -1,0 +1,345 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru" x-data="{ darkMode: false }" :class="{ 'dark': darkMode }">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SportCRM - Управление спортивной секцией{% endblock %}</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#2563eb',
+                            600: '#1d4ed8',
+                            700: '#1e40af',
+                            800: '#1e3a8a',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- HTMX для интерактивности -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    
+    <!-- Alpine.js для реактивности -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js"></script>
+    
+    <!-- Chart.js для графиков -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        [x-cloak] { display: none !important; }
+        .transition-all { transition: all 0.3s ease; }
+        .hover-lift:hover { transform: translateY(-2px); }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen transition-colors duration-300" 
+      x-data="{ sidebarOpen: false, dropdownOpen: false }">
+    
+    <!-- Мобильное меню -->
+    <div x-show="sidebarOpen" 
+         x-transition:enter="transition-opacity ease-linear duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition-opacity ease-linear duration-300"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-40 lg:hidden" 
+         x-cloak>
+        <div class="fixed inset-0 bg-gray-600 bg-opacity-75" @click="sidebarOpen = false"></div>
+    </div>
+
+    <!-- Боковая навигация -->
+    <div x-show="sidebarOpen"
+         x-transition:enter="transition ease-in-out duration-300 transform"
+         x-transition:enter-start="-translate-x-full"
+         x-transition:enter-end="translate-x-0"
+         x-transition:leave="transition ease-in-out duration-300 transform"
+         x-transition:leave-start="translate-x-0"
+         x-transition:leave-end="-translate-x-full"
+         class="fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg lg:hidden"
+         x-cloak>
+        <div class="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-gray-700">
+            <h1 class="text-xl font-bold text-primary-600 dark:text-primary-400">SportCRM</h1>
+            <button @click="sidebarOpen = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <nav class="mt-6 px-3">
+            <div class="space-y-1">
+                <a href="{% url 'core:home' %}" 
+                   class="group flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all">
+                    <i class="fas fa-home mr-3 text-gray-400 group-hover:text-primary-500"></i>
+                    Дашборд
+                </a>
+                <a href="#" 
+                   class="group flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all">
+                    <i class="fas fa-users mr-3 text-gray-400 group-hover:text-primary-500"></i>
+                    Группы
+                </a>
+                <a href="#" 
+                   class="group flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all">
+                    <i class="fas fa-user-friends mr-3 text-gray-400 group-hover:text-primary-500"></i>
+                    Спортсмены
+                </a>
+                <a href="{% url 'core:attendance_journal' %}" 
+                   class="group flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all">
+                    <i class="fas fa-calendar-check mr-3 text-gray-400 group-hover:text-primary-500"></i>
+                    Посещаемость
+                </a>
+                <a href="{% url 'core:payments_view' %}" 
+                   class="group flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all">
+                    <i class="fas fa-credit-card mr-3 text-gray-400 group-hover:text-primary-500"></i>
+                    Платежи
+                </a>
+                <a href="#" 
+                   class="group flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all">
+                    <i class="fas fa-chart-line mr-3 text-gray-400 group-hover:text-primary-500"></i>
+                    Аналитика
+                </a>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Десктопная навигация -->
+    <div class="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
+        <div class="flex flex-col flex-grow bg-white dark:bg-gray-800 shadow-lg">
+            <div class="flex items-center h-16 px-6 border-b border-gray-200 dark:border-gray-700">
+                <h1 class="text-xl font-bold text-primary-600 dark:text-primary-400">SportCRM</h1>
+            </div>
+            <nav class="mt-6 px-3 flex-1">
+                <div class="space-y-1">
+                    <a href="{% url 'core:home' %}" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all">
+                        <i class="fas fa-home mr-3 text-gray-400 group-hover:text-primary-500"></i>
+                        Дашборд
+                    </a>
+                    <a href="#" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all">
+                        <i class="fas fa-users mr-3 text-gray-400 group-hover:text-primary-500"></i>
+                        Группы
+                    </a>
+                    <a href="#" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all">
+                        <i class="fas fa-user-friends mr-3 text-gray-400 group-hover:text-primary-500"></i>
+                        Спортсмены
+                    </a>
+                    <a href="{% url 'core:attendance_journal' %}" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all">
+                        <i class="fas fa-calendar-check mr-3 text-gray-400 group-hover:text-primary-500"></i>
+                        Посещаемость
+                    </a>
+                    <a href="{% url 'core:payments_view' %}" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all">
+                        <i class="fas fa-credit-card mr-3 text-gray-400 group-hover:text-primary-500"></i>
+                        Платежи
+                    </a>
+                    <a href="#" 
+                       class="group flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all">
+                        <i class="fas fa-chart-line mr-3 text-gray-400 group-hover:text-primary-500"></i>
+                        Аналитика
+                    </a>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Основной контент -->
+    <div class="lg:pl-64">
+        <!-- Верхняя панель -->
+        <div class="sticky top-0 z-10 bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
+                <button @click="sidebarOpen = true" class="lg:hidden p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+                
+                <div class="flex items-center space-x-4">
+                    <!-- Переключатель темы -->
+                    <button @click="darkMode = !darkMode" 
+                            class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+                        <i class="fas fa-sun text-xl" x-show="!darkMode"></i>
+                        <i class="fas fa-moon text-xl" x-show="darkMode" x-cloak></i>
+                    </button>
+                    
+                    <!-- Уведомления -->
+                    <button class="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all relative">
+                        <i class="fas fa-bell text-xl"></i>
+                        <span class="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
+                    </button>
+                    
+                    <!-- Профиль -->
+                    <div class="relative" x-data="{ profileOpen: false }">
+                        <button @click="profileOpen = !profileOpen" 
+                                class="flex items-center space-x-2 p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+                            <div class="h-8 w-8 rounded-full bg-primary-500 flex items-center justify-center">
+                                <i class="fas fa-user text-white text-sm"></i>
+                            </div>
+                            <i class="fas fa-chevron-down text-xs"></i>
+                        </button>
+                        
+                        <div x-show="profileOpen" 
+                             x-transition:enter="transition ease-out duration-100"
+                             x-transition:enter-start="transform opacity-0 scale-95"
+                             x-transition:enter-end="transform opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-75"
+                             x-transition:leave-start="transform opacity-100 scale-100"
+                             x-transition:leave-end="transform opacity-0 scale-95"
+                             class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50"
+                             x-cloak>
+                            <a href="{% url 'admin:index' %}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                <i class="fas fa-cog mr-2"></i>Настройки
+                            </a>
+                            <a href="#" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                <i class="fas fa-sign-out-alt mr-2"></i>Выйти
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Контент страницы -->
+        <main class="py-6">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                {% block content %}
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">Добро пожаловать в SportCRM</h2>
+                    <p class="text-lg text-gray-600 dark:text-gray-400">Система управления спортивной секцией</p>
+                </div>
+
+                <!-- Демонстрация Alpine.js -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mb-6" x-data="{ count: 0, name: '' }">
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">🧪 Тест Alpine.js</h3>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Ваше имя:</label>
+                            <input type="text" x-model="name" 
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                   placeholder="Введите имя">
+                        </div>
+                        <div x-show="name" class="text-green-600 dark:text-green-400 font-medium">
+                            <span>Привет, </span><span x-text="name"></span>!
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <button @click="count++" 
+                                    class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                Увеличить
+                            </button>
+                            <span class="text-lg font-semibold">Счётчик: <span x-text="count"></span></span>
+                            <button @click="count = 0" 
+                                    class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                                Сброс
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Демонстрация HTMX -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">🚀 Тест HTMX</h3>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <button hx-get="{% url 'core:ping' %}" 
+                                hx-target="#htmx-result"
+                                hx-indicator="#loading"
+                                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                            <i class="fas fa-bolt mr-2"></i>
+                            Проверить сервер
+                        </button>
+                        <div id="loading" class="htmx-indicator text-primary-600 dark:text-primary-400 font-medium">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>Загрузка...
+                        </div>
+                        <div id="htmx-result" class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600"></div>
+                    </div>
+                </div>
+                {% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <!-- Django Browser Reload для разработки -->
+    {% if debug %}
+        {% load django_browser_reload %}
+        {% django_browser_reload_script %}
+    {% endif %}
+
+    {% block extra_js %}{% endblock %}
+    
+    <!-- HTMX конфигурация -->
+    <script>
+        // Автоматически добавляем CSRF токен во все HTMX запросы
+        document.body.addEventListener('htmx:configRequest', (event) => {
+            event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+        });
+        
+        // Логирование успешных HTMX запросов
+        document.body.addEventListener('htmx:afterRequest', (event) => {
+            if (event.detail.successful) {
+                console.log('HTMX запрос выполнен успешно');
+            } else {
+                console.error('HTMX запрос завершился с ошибкой');
+            }
+        });
+        
+        // Обработка ошибок HTMX
+        document.body.addEventListener('htmx:responseError', (event) => {
+            console.error('Ошибка HTMX:', event.detail);
+        });
+    </script>
+    
+    <!-- Стили для HTMX индикатора загрузки -->
+    <style>
+        .htmx-indicator {
+            display: none;
+        }
+        .htmx-request .htmx-indicator {
+            display: block;
+        }
+        
+        /* Плавные переходы для всех элементов */
+        * {
+            transition: all 0.2s ease-in-out;
+        }
+        
+        /* Стили для скроллбара */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+    </style>
+</body>
+</html>

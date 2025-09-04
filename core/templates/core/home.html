@@ -1,0 +1,139 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Заголовок -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Добро пожаловать в SportCRM</h1>
+        <p class="text-gray-600">Управление спортивной секцией стало проще</p>
+    </div>
+
+    <!-- Статистика -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Группы -->
+        <div class="bg-white rounded-lg shadow-sm p-6 border-l-4 border-blue-500">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-users text-blue-600 text-2xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Спортивные группы</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ stats.groups }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Спортсмены -->
+        <div class="bg-white rounded-lg shadow-sm p-6 border-l-4 border-green-500">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-user-friends text-green-600 text-2xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Спортсмены</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ stats.athletes }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Посещаемость сегодня -->
+        <div class="bg-white rounded-lg shadow-sm p-6 border-l-4 border-yellow-500">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-calendar-check text-yellow-600 text-2xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Посещаемость сегодня</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ stats.attendance_today }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ожидающие оплаты -->
+        <div class="bg-white rounded-lg shadow-sm p-6 border-l-4 border-red-500">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-credit-card text-red-600 text-2xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Ожидающие оплаты</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ stats.payments_pending }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Быстрые действия -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Быстрые действия</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <a href="{% url 'groups:create' %}" class="flex items-center p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors">
+                <i class="fas fa-plus text-blue-600 mr-3"></i>
+                <span class="text-gray-700 font-medium">Добавить группу</span>
+            </a>
+            
+            <a href="{% url 'athletes:create' %}" class="flex items-center p-4 border border-gray-200 rounded-lg hover:border-green-300 hover:bg-green-50 transition-colors">
+                <i class="fas fa-user-plus text-green-600 mr-3"></i>
+                <span class="text-gray-700 font-medium">Добавить спортсмена</span>
+            </a>
+            
+            <a href="{% url 'attendance:create' %}" class="flex items-center p-4 border border-gray-200 rounded-lg hover:border-yellow-300 hover:bg-yellow-50 transition-colors">
+                <i class="fas fa-calendar-plus text-yellow-600 mr-3"></i>
+                <span class="text-gray-700 font-medium">Отметить посещаемость</span>
+            </a>
+            
+            <a href="{% url 'payments:create' %}" class="flex items-center p-4 border border-gray-200 rounded-lg hover:border-red-300 hover:bg-red-50 transition-colors">
+                <i class="fas fa-money-bill-wave text-red-600 mr-3"></i>
+                <span class="text-gray-700 font-medium">Записать оплату</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Последние действия -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Последние действия</h2>
+        <div class="space-y-4">
+            <div class="flex items-center p-4 bg-gray-50 rounded-lg">
+                <div class="flex-shrink-0">
+                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-user-plus text-blue-600 text-sm"></i>
+                    </div>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-900">Добавлен новый спортсмен</p>
+                    <p class="text-sm text-gray-500">Иван Петров добавлен в группу "Начинающие"</p>
+                </div>
+                <div class="ml-auto text-sm text-gray-500">2 часа назад</div>
+            </div>
+            
+            <div class="flex items-center p-4 bg-gray-50 rounded-lg">
+                <div class="flex-shrink-0">
+                    <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-credit-card text-green-600 text-sm"></i>
+                    </div>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-900">Получена оплата</p>
+                    <p class="text-sm text-gray-500">Оплата за месяц от Марии Сидоровой</p>
+                </div>
+                <div class="ml-auto text-sm text-gray-500">4 часа назад</div>
+            </div>
+            
+            <div class="flex items-center p-4 bg-gray-50 rounded-lg">
+                <div class="flex-shrink-0">
+                    <div class="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-calendar-check text-yellow-600 text-sm"></i>
+                    </div>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-900">Отмечена посещаемость</p>
+                    <p class="text-sm text-gray-500">15 спортсменов посетили тренировку</p>
+                </div>
+                <div class="ml-auto text-sm text-gray-500">6 часов назад</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
