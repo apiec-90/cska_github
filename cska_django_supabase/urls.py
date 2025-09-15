@@ -19,6 +19,7 @@ from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
 from core.views import (
+    home_view,
     start_registration,
     step2_view,
     step3_view,
@@ -28,6 +29,7 @@ from core.views import (
 )
 
 urlpatterns = [
+    path('', home_view, name='home'),  # Главная страница
     path('admin/', admin.site.urls),  # Только админка для суперпользователей
     path('register/', start_registration, name='start_registration'),
     path('register/step2/<int:draft_id>/', step2_view, name='register_step2'),

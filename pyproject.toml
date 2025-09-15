@@ -9,6 +9,11 @@ description = "CSKA Django CRM with Supabase integration"
 dependencies = [
     "Django>=4.2.0",
     "psycopg2-binary>=2.9.0",
+    "dj-database-url>=2.2.0",
+    "python-dotenv>=1.0.0",
+    "django-jazzmin>=3.0.0",
+    "supabase>=2.7.0",
+    "Pillow>=10.4.0",
 ]
 
 [tool.basedpyright]

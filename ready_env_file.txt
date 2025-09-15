@@ -1,0 +1,21 @@
+# Django настройки
+DEBUG=True
+SECRET_KEY=django-insecure-cska-sports-crm-super-secret-key-change-in-production-2025
+ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+
+# Supabase настройки - ГОТОВЫЕ ДАННЫЕ ДЛЯ КОПИРОВАНИЯ
+SUPABASE_URL=https://gzrefdsqgynnvdodubiu.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6cmVmZHNxZ3lubnZkb2R1Yml1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5MzMzMjUsImV4cCI6MjA1MDUwOTMyNX0.ЗАМЕНИТЕ_НА_ВАШ_ANON_KEY
+SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6cmVmZHNxZ3lubnZkb2R1Yml1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNDkzMzMyNSwiZXhwIjoyMDUwNTA5MzI1fQ.ЗАМЕНИТЕ_НА_ВАШ_SERVICE_KEY
+
+# Database URL для подключения к Supabase PostgreSQL
+# ЗАМЕНИТЕ password-here НА ВАШ РЕАЛЬНЫЙ ПАРОЛЬ ОТ БАЗЫ ДАННЫХ
+DATABASE_URL=postgresql://postgres:password-here@db.gzrefdsqgynnvdodubiu.supabase.co:5432/postgres
+
+# Storage настройки
+SUPABASE_STORAGE_BUCKET=media
+
+# Дополнительные настройки для продакшена (опционально)
+# SECURE_SSL_REDIRECT=True
+# SECURE_BROWSER_XSS_FILTER=True
+# SECURE_CONTENT_TYPE_NOSNIFF=True

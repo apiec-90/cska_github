@@ -1,27 +1,50 @@
+"""
+Кастомные фильтры для Django шаблонов
+"""
 from django import template
 
 register = template.Library()
 
-@register.filter
-def lookup(dictionary, key):
-    """Фильтр для доступа к значению словаря по ключу"""
-    if isinstance(key, str) and ',' in key:
-        # Если ключ содержит запятую, разбиваем его на части
-        keys = key.split(',')
-        if len(keys) == 2:
-            try:
-                key1, key2 = int(keys[0]), int(keys[1])
-                return dictionary.get((key1, key2), False)
-            except (ValueError, TypeError):
-                pass
-    return dictionary.get(key, False)
 
 @register.filter
-def lookup2(dictionary, session_id, athlete_id):
-    """Фильтр для доступа к значению словаря по двум ключам"""
+def length_is(value, arg):
+    """
+    Возвращает True, если длина значения равна аргументу
+    """
     try:
-        return dictionary.get((int(session_id), int(athlete_id)), False)
-    except (ValueError, TypeError):
+        return len(value) == int(arg)
+    except (Exception,):
         return False
 
 
+@register.filter(name="lookup")
+def lookup(mapping, key):
+    """
+    Безопасный доступ к словарю по ключу из шаблона.
+    Пример: {{ mydict|lookup:some_id }}
+    - Пытается ключ как есть, как str и как int
+    - Возвращает None, если ключа нет или объект не словарь
+    """
+    try:
+        if mapping is None:
+            return None
+        # dict-like интерфейс
+        if hasattr(mapping, "get"):
+            if key in mapping:
+                return mapping[key]
+            # пробуем альтернативные представления ключа
+            for alt in (str(key), int(key) if str(key).isdigit() else key):
+                val = mapping.get(alt)
+                if val is not None:
+                    return val
+            return mapping.get(key)
+        # Списки/кортежи: пытаемся индекс
+        if isinstance(mapping, (list, tuple)):
+            try:
+                idx = int(key)
+                return mapping[idx]
+            except Exception:
+                return None
+    except Exception:
+        return None
+    return None

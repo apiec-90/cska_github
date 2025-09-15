@@ -1,23 +1,6 @@
 {% extends "admin/change_form.html" %}
-{% block content %}
-<div class="card mb-3">
-  <div class="card-body d-flex align-items-center gap-3">
-    <div class="d-flex align-items-center justify-content-center rounded-circle" style="width:68px;height:68px;background:#e9ecef;">
-      <strong>{{ original.user.first_name|default:original.user.username|first|upper }}</strong>
-    </div>
-    <div class="flex-fill">
-      <div class="h5 mb-1">
-        {{ original.user.last_name }} {{ original.user.first_name }}{% if not original.user.first_name and not original.user.last_name %}{{ original.user.username }}{% endif %}
-      </div>
-      <div class="text-muted">Роль: {{ original.get_role_display|default:"—" }} • Телефон: {{ original.phone|default:"—" }}</div>
-    </div>
-    <div>
-      <span class="badge {% if original.user.is_active %}badge-success{% else %}badge-secondary{% endif %}">
-        {% if original.user.is_active %}Активен{% else %}Неактивен{% endif %}
-      </span>
-    </div>
-  </div>
-</div>
+{% load custom_filters %}
 
+{% block content %}
 {{ block.super }}
 {% endblock %}

@@ -1,0 +1,29 @@
+{% load custom_filters %}
+<fieldset class="module aligned {{ fieldset.classes }}">
+    {% if fieldset.name %}<h2>{{ fieldset.name }}</h2>{% endif %}
+    {% if fieldset.description %}
+        <div class="description">{{ fieldset.description|safe }}</div>
+    {% endif %}
+    {% for line in fieldset %}
+        <div class="form-row{% if line.errors %} errors{% endif %}{% for field in line %} {{ field.field.html_name }}{% endfor %}">
+            {% for field in line %}
+                <div{% if not line.fields|length_is:"1" %} class="field-box"{% endif %}>
+                    {% if field.is_checkbox %}
+                        {{ field.field }}{{ field.label_tag }}
+                    {% else %}
+                        {{ field.label_tag }}
+                        {% if field.is_readonly %}
+                            <div class="readonly">{{ field.contents }}</div>
+                        {% else %}
+                            {{ field.field }}
+                        {% endif %}
+                    {% endif %}
+                    {% if field.field.help_text %}
+                        <div class="help">{{ field.field.help_text|safe }}</div>
+                    {% endif %}
+                    {{ field.field.errors }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endfor %}
+</fieldset>

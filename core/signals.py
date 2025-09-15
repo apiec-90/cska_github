@@ -50,21 +50,33 @@ def remove_role_records(sender, instance, action, pk_set, **kwargs):
                 # Обработка специальных групп
                 config = GROUP_MODEL_MAPPING[group.name]
                 model_class = config['model']
-                
-                # Находим и удаляем запись
-                existing_record = model_class.objects.filter(user=user).first()
-                if existing_record:
-                    existing_record.delete()
-                    print(f"Удалена запись {model_class.__name__} для пользователя {user.username} из группы {group.name}")
-                    
-                    # Логируем удаление
+
+                # Никогда не удаляем текущую запись Staff при изменении групп
+                if model_class is Staff:
                     AuditRecord.objects.create(
                         user=user,
-                        action=f'delete_{model_class.__name__.lower()}',
-                        content_type=ContentType.objects.get_for_model(model_class),
-                        object_id=existing_record.id,
-                        details=f"Автоматически удалена запись {model_class.__name__} при удалении из группы {group.name}"
+                        action='remove_from_group',
+                        content_type=ContentType.objects.get_for_model(Group),
+                        object_id=group.id,
+                        details=f"Пользователь удален из группы {group.name}, запись Staff оставлена"
                     )
+                else:
+                    # Находим и удаляем профильную запись для других моделей
+                    existing_record = model_class.objects.filter(user=user).first()
+                    if existing_record:
+                        # Сохраняем ID перед удалением для логирования
+                        record_id = existing_record.id
+                        existing_record.delete()
+                        print(f"Удалена запись {model_class.__name__} для пользователя {user.username} из группы {group.name}")
+
+                        # Логируем удаление
+                        AuditRecord.objects.create(
+                            user=user,
+                            action=f'delete_{model_class.__name__.lower()}',
+                            content_type=ContentType.objects.get_for_model(model_class),
+                            object_id=record_id,
+                            details=f"Автоматически удалена запись {model_class.__name__} при удалении из группы {group.name}"
+                        )
             else:
                 # Для новых групп - НЕ удаляем Staff, только логируем
                 existing_staff = Staff.objects.filter(user=user).first()
