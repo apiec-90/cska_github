@@ -33,7 +33,7 @@ class DocumentAdmin(admin.ModelAdmin):
     """Админка документов"""
     
     list_display = [
-        'document_type', 'content_type', 'object_id', 
+        'document_type', 'get_object_display', 'comment', 
         'uploaded_by', 'uploaded_at', 'is_private', 'is_archived'
     ]
     list_filter = [
@@ -42,6 +42,13 @@ class DocumentAdmin(admin.ModelAdmin):
     ]
     search_fields = ['document_type__name', 'comment']
     ordering = ['-uploaded_at']
+    
+    def get_object_display(self, obj):
+        """Отображение связанного объекта"""
+        if obj.content_object:
+            return f"{obj.content_type.name} #{obj.object_id}: {obj.content_object}"
+        return f"{obj.content_type.name} #{obj.object_id}"
+    get_object_display.short_description = "Объект"
 
 
 @admin.register(Payment)

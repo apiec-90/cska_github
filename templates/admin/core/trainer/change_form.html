@@ -24,7 +24,7 @@
               </div>
             {% endif %}
             <!-- Скрытая форма загрузки -->
-            <form id="avatar-form" action="{% url 'admin:core_trainer_upload_avatar' object_id=original.id %}" method="post" enctype="multipart/form-data" style="display:none;">
+            <form id="avatar-form" action="{% url 'admin:core_trainer_upload_avatar' object_id=original.id %}" method="post" enctype="multipart/form-data" style="display:none;" onsubmit="setTimeout(()=>window.location.reload(), 1500)">
             {% csrf_token %}
             <input type="file" id="avatar-upload" name="avatar" accept="image/*" onchange="this.form.submit();">
           </form>

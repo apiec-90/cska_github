@@ -13,18 +13,15 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 
-try:
-    import dj_database_url  # импортируем для поддержки подключения к БД через URL
-except ImportError:
-    dj_database_url = None  # если нет, не ломаем проект, но логируем ниже
+import dj_database_url
 
 from dotenv import load_dotenv  # для загрузки переменных окружения из .env
 
-# Загрузка переменных окружения из .env файла
-load_dotenv()  # обязательно вызываем до использования переменных окружения
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Явная загрузка .env из корня проекта (Windows/UTF-8 BOM совместимость)
+load_dotenv(dotenv_path=BASE_DIR / '.env', override=False)  # загружаем один раз до чтения переменных
 
 
 # Quick-start development settings - unsuitable for production
@@ -92,7 +89,24 @@ WSGI_APPLICATION = 'cska_django_supabase.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 # Database configuration - поддержка SQLite и PostgreSQL (Supabase)
+# 1) Пробуем взять готовый DATABASE_URL
 DATABASE_URL = os.environ.get('DATABASE_URL')
+
+# 2) Если нет, собираем из отдельных переменных окружения
+if not DATABASE_URL:
+    db_host = os.environ.get('DB_HOST')
+    db_port = os.environ.get('DB_PORT', '5432')
+    db_name = os.environ.get('DB_NAME')
+    db_user = os.environ.get('DB_USER')
+    db_password = os.environ.get('DB_PASSWORD')
+    db_ssl_mode = os.environ.get('DB_SSL_MODE', 'require')  # для Supabase обычно 'require'
+
+    # Если заданы все компоненты — формируем URL
+    if all([db_host, db_name, db_user, db_password]):
+        # Формируем стандартный libpq-URL с sslmode
+        DATABASE_URL = (
+            f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?sslmode={db_ssl_mode}"
+        )
 
 if DATABASE_URL:
     # Подключение к Supabase PostgreSQL
@@ -224,14 +238,22 @@ JAZZMIN_SETTINGS = {
     },
     "order_with_respect_to": [
         "auth",
-        "core.PaymentMethod",
-        "core.Staff",
-        "core.Parent",
-        "core.Athlete",
-        "core.TrainingGroup",
-        "core.Document",
-        "core.Payment",
+        "core",
     ],
+    "hide_apps": [
+        "athletes",  # Скрываем дублированное приложение - модели в core
+        "attendance",  # Скрываем дублированное приложение - модели в core
+        "groups",  # Скрываем дублированное приложение - модели в core
+        "payments",  # Скрываем дублированное приложение - модели в core
+    ],
+    "custom_links": {
+        "core": [{
+            "name": "Все документы", 
+            "url": "admin:core_document_changelist", 
+            "icon": "fas fa-file",
+            "permissions": ["core.view_document"]
+        }]
+    },
 
 }
 

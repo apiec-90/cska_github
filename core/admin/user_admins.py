@@ -128,7 +128,7 @@ class ParentAdmin(BaseDocumentMixin, BasePersonAdmin, BaseChangeFormMixin):
     search_fields = ['user__first_name', 'user__last_name', 'phone']
     ordering = ['user__last_name', 'user__first_name']
     
-    inlines = [ParentAthleteInline]
+    # inlines = [ParentAthleteInline]  # Отключены - используем кастомные блоки в шаблоне
     change_form_template = 'admin/core/parent/change_form.html'
     
     fieldsets = (
@@ -197,7 +197,7 @@ class AthleteAdmin(BaseDocumentMixin, BasePersonAdmin, BaseChangeFormMixin):
     search_fields = ['user__first_name', 'user__last_name', 'phone']
     ordering = ['user__last_name', 'user__first_name']
     
-    inlines = [AthleteParentInline, AthleteTrainingGroupInline]
+    # inlines = [AthleteParentInline, AthleteTrainingGroupInline]  # Отключены - используем кастомные блоки в шаблоне
     change_form_template = 'admin/core/athlete/change_form.html'
     
     fieldsets = (

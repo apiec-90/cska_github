@@ -256,8 +256,19 @@ class BaseDocumentMixin:
             self._create_avatar_document(obj, file_name, file_obj, request.user)
             
             messages.success(request, 'Avatar uploaded successfully')
+            
+            # Для AJAX запросов возвращаем JSON
+            if request.headers.get('Content-Type', '').startswith('multipart/form-data'):
+                from django.http import JsonResponse
+                return JsonResponse({'success': True, 'message': 'Avatar uploaded successfully'})
+                
         except Exception as e:
             messages.error(request, f'Avatar upload error: {e}')
+            
+            # Для AJAX запросов возвращаем JSON с ошибкой
+            if request.headers.get('Content-Type', '').startswith('multipart/form-data'):
+                from django.http import JsonResponse
+                return JsonResponse({'success': False, 'error': str(e)})
         
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
     
@@ -295,8 +306,24 @@ class BaseDocumentMixin:
             self._create_document_record(obj, file_name, file_obj, comment, document_type_id, request.user)
             
             messages.success(request, 'Документ успешно загружен')
+            
+            # Для AJAX запросов возвращаем JSON
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', ''):
+                from django.http import JsonResponse
+                return JsonResponse({
+                    'success': True, 
+                    'message': 'Документ успешно загружен',
+                    'file_url': f'/media/documents/{file_name}',
+                    'file_name': file_name
+                })
+                
         except Exception as e:
             messages.error(request, f'Ошибка загрузки документа: {e}')
+            
+            # Для AJAX запросов возвращаем JSON с ошибкой
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', ''):
+                from django.http import JsonResponse
+                return JsonResponse({'success': False, 'error': str(e)})
         
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
     
@@ -446,7 +473,8 @@ class BaseChangeFormMixin:
                     avatar_type = DocumentType.objects.get(name='Avatar')
                     avatar_doc = documents.filter(document_type=avatar_type).first()
                     if avatar_doc:
-                        avatar_url = avatar_doc.file
+                        media_url = getattr(settings, 'MEDIA_URL', '/media/')
+                        avatar_url = f"{media_url}{avatar_doc.file}"
                 except DocumentType.DoesNotExist:
                     pass
                 
