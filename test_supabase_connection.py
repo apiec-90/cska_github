@@ -3,13 +3,10 @@
 Тесты для проверки подключения к Supabase и соответствия пользователей
 """
 import os
-import sys
 import django
-from django.conf import settings
-from django.test import TestCase
 from django.db import connection
 from django.contrib.auth.models import User
-from core.models import Staff, Athlete, Parent, TrainingGroup
+from core.models import Staff, Athlete
 
 # Настройка Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cska_django_supabase.settings')

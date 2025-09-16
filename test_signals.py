@@ -5,16 +5,15 @@
 """
 
 import os
-import sys
 import django
-from datetime import date, time
+from datetime import time
 
 # Настройка Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cska_django_supabase.settings')
 django.setup()
 
-from core.models import TrainingGroup, GroupSchedule, TrainingSession
-from core.utils.sessions import resync_future_sessions_for_group, ensure_month_sessions_for_group
+from core.models import TrainingGroup, GroupSchedule, TrainingSession  # noqa: E402
+from core.utils.sessions import resync_future_sessions_for_group, ensure_month_sessions_for_group  # noqa: E402
 
 def test_weekday_conversion():
     """Тест преобразования weekday"""

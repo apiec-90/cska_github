@@ -5,23 +5,20 @@
 """
 
 import os
-import sys
 import django
-from django.test import TestCase, Client
+from django.test import Client
 from django.contrib.auth.models import User, Group
 from django.urls import reverse
-from django.core.management.base import BaseCommand
+ 
 
 # Настройка Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cska_project.settings')
 django.setup()
 
-from core.models import (
-    Athlete, Parent, Trainer, Staff, 
-    TrainingGroup, GroupSchedule, TrainingSession,
-    AthleteParent, AthleteTrainingGroup, AttendanceRecord,
-    Payment, Document, DocumentType, AuditRecord,
-    RegistrationDraft
+from core.models import (  # noqa: E402
+    Athlete, Parent,
+    TrainingGroup,
+    AthleteParent, AthleteTrainingGroup,
 )
 
 
@@ -46,7 +43,7 @@ class AdminFunctionalityTest:
             return False
             
         # Логинимся в админку
-        login_success = self.client.force_login(self.superuser)
+        self.client.force_login(self.superuser)
         print("✅ Авторизация в админке выполнена")
         
         return True
@@ -126,7 +123,7 @@ class AdminFunctionalityTest:
                 url = reverse('admin:core_athlete_change', args=[athlete.id])
                 response = self.client.get(url)
                 if response.status_code == 200:
-                    print(f"   ✏️ Форма редактирования спортсмена: OK")
+                    print("   ✏️ Форма редактирования спортсмена: OK")
                 else:
                     issues.append(f"Форма редактирования спортсмена: ошибка {response.status_code}")
             else:
@@ -335,7 +332,7 @@ class AdminFunctionalityTest:
                 print(f"\n❌ Тест '{test_name}' завершился с ошибкой: {e}")
         
         # Итоговый отчет
-        print(f"\n📋 ИТОГОВЫЙ ОТЧЕТ ТЕСТИРОВАНИЯ")
+        print("\n📋 ИТОГОВЫЙ ОТЧЕТ ТЕСТИРОВАНИЯ")
         print("=" * 60)
         
         if passed_tests == total_tests:
@@ -343,7 +340,7 @@ class AdminFunctionalityTest:
             print(f"✅ {passed_tests}/{total_tests} тестов пройдено")
             print("\n🚀 Система готова к работе!")
         else:
-            print(f"⚠️ ТЕСТЫ ПРОЙДЕНЫ ЧАСТИЧНО")
+            print("⚠️ ТЕСТЫ ПРОЙДЕНЫ ЧАСТИЧНО")
             print(f"✅ {passed_tests}/{total_tests} тестов пройдено")
             print(f"❌ {total_tests - passed_tests} тестов не пройдено")
         

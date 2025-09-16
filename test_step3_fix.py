@@ -9,10 +9,10 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cska_django_supabase.settings')
 django.setup()
 
-from django.contrib.auth.models import User
-from django.test import Client
-from django.urls import reverse
-from core.models import RegistrationDraft, Athlete
+from django.contrib.auth.models import User  # noqa: E402
+from django.test import Client  # noqa: E402
+from django.urls import reverse  # noqa: E402
+from core.models import RegistrationDraft, Athlete  # noqa: E402
 
 def test_step3_registration():
     """Test that step 3 admin registration works"""
@@ -33,7 +33,7 @@ def test_step3_registration():
     client = Client()
     client.force_login(admin_user)
     
-    print(f"\n📝 Testing full 3-step registration process...")
+    print("\n📝 Testing full 3-step registration process...")
     
     # Step 1: Create user
     step1_data = {
@@ -50,7 +50,7 @@ def test_step3_registration():
     print(f"  Step 1 response: {response.status_code}")
     
     if response.status_code == 302:  # Redirect means success
-        print(f"  ✅ Step 1: User created successfully")
+        print("  ✅ Step 1: User created successfully")
         
         # Get the draft ID from the redirect URL
         redirect_url = response.url
@@ -63,7 +63,7 @@ def test_step3_registration():
         print(f"  Step 2 response: {response.status_code}")
         
         if response.status_code == 302:  # Should redirect to step 3
-            print(f"  ✅ Step 2: Role selected successfully")
+            print("  ✅ Step 2: Role selected successfully")
             
             # Step 3: Profile details
             step3_data = {
@@ -77,7 +77,7 @@ def test_step3_registration():
             print(f"  Step 3 response: {response.status_code}")
             
             if response.status_code == 302:  # Should redirect to done
-                print(f"  ✅ Step 3: Profile created successfully")
+                print("  ✅ Step 3: Profile created successfully")
                 
                 # Verify user was created and activated
                 user = User.objects.get(username='test_step3_user')
@@ -91,9 +91,9 @@ def test_step3_registration():
                     print(f"  🏃 Athlete profile: {athlete.first_name} {athlete.last_name}")
                     print(f"  📞 Phone: {athlete.phone}")
                     print(f"  🎂 Birth date: {athlete.birth_date}")
-                    print(f"  ✅ STEP 3 REGISTRATION: SUCCESS!")
+                    print("  ✅ STEP 3 REGISTRATION: SUCCESS!")
                 else:
-                    print(f"  ❌ No athlete profile found")
+                    print("  ❌ No athlete profile found")
                     
                 # Verify draft is completed
                 draft = RegistrationDraft.objects.get(pk=draft_id)
@@ -109,13 +109,13 @@ def test_step3_registration():
     else:
         print(f"  ❌ Step 1 failed with status {response.status_code}")
     
-    print(f"\n📊 SUMMARY:")
-    print(f"✅ Step 3 admin registration has been fixed and is now working!")
-    print(f"🎯 The registration process now includes:")
-    print(f"   1. User creation (Step 1)")
-    print(f"   2. Role selection (Step 2)")
-    print(f"   3. Profile details (Step 3) ← NEW!")
-    print(f"   4. Registration completion")
+    print("\n📊 SUMMARY:")
+    print("✅ Step 3 admin registration has been fixed and is now working!")
+    print("🎯 The registration process now includes:")
+    print("   1. User creation (Step 1)")
+    print("   2. Role selection (Step 2)")
+    print("   3. Profile details (Step 3) ← NEW!")
+    print("   4. Registration completion")
 
 if __name__ == "__main__":
     test_step3_registration()

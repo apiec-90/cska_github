@@ -9,9 +9,9 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cska_django_supabase.settings')
 django.setup()
 
-from django.contrib.auth.models import User
-from core.models import Athlete, Parent, Trainer, Staff
-from core.admin.base import CustomUserAdmin
+from django.contrib.auth.models import User  # noqa: E402
+from core.models import Athlete, Parent, Trainer, Staff  # noqa: E402
+from core.admin.base import CustomUserAdmin  # noqa: E402
 
 def test_role_display():
     """Test the get_user_role method"""
@@ -31,7 +31,7 @@ def test_role_display():
         print(f"  👤 {user.username:<15} | Role: {role:<20} | Groups: {groups}")
     
     # Test role detection logic
-    print(f"\n🔍 DETAILED ROLE ANALYSIS:")
+    print("\n🔍 DETAILED ROLE ANALYSIS:")
     print("=" * 60)
     
     for user in users:
@@ -59,7 +59,7 @@ def test_role_display():
         role = admin_instance.get_user_role(user)
         print(f"   🎯 Detected Role: {role}")
     
-    print(f"\n📊 SUMMARY:")
+    print("\n📊 SUMMARY:")
     print("=" * 60)
     print(f"Total users: {users.count()}")
     print(f"Athletes: {Athlete.objects.count()}")
@@ -67,8 +67,8 @@ def test_role_display():
     print(f"Trainers: {Trainer.objects.count()}")
     print(f"Staff: {Staff.objects.count()}")
     
-    print(f"\n✅ Role display functionality test completed!")
-    print(f"🎯 The admin interface will now show user roles in the list view.")
+    print("\n✅ Role display functionality test completed!")
+    print("🎯 The admin interface will now show user roles in the list view.")
 
 if __name__ == "__main__":
     test_role_display()

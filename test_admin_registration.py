@@ -9,10 +9,9 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cska_django_supabase.settings')
 django.setup()
 
-from django.contrib.auth.models import User
-from django.test import Client
-from django.urls import reverse
-from core.models import RegistrationDraft, Athlete, Parent, Trainer, Staff
+from django.contrib.auth.models import User  # noqa: E402
+from django.test import Client  # noqa: E402
+from core.models import RegistrationDraft, Athlete, Parent, Trainer, Staff  # noqa: E402
 
 def test_admin_registration():
     """Test the admin registration system"""
@@ -123,7 +122,7 @@ def test_admin_registration():
             traceback.print_exc()
     
     # Final verification
-    print(f"\n📊 FINAL VERIFICATION")
+    print("\n📊 FINAL VERIFICATION")
     print("=" * 50)
     
     print(f"Total users: {User.objects.count()}")
@@ -153,12 +152,12 @@ def test_admin_registration():
             print(f"  - {mismatch}")
         return False
     else:
-        print(f"\n✅ NO MISMATCHES FOUND - Admin registration working correctly!")
+        print("\n✅ NO MISMATCHES FOUND - Admin registration working correctly!")
         return True
 
 if __name__ == "__main__":
     success = test_admin_registration()
     if success:
-        print(f"\n🎉 ADMIN REGISTRATION TEST: PASSED")
+        print("\n🎉 ADMIN REGISTRATION TEST: PASSED")
     else:
-        print(f"\n💥 ADMIN REGISTRATION TEST: FAILED")
+        print("\n💥 ADMIN REGISTRATION TEST: FAILED")
