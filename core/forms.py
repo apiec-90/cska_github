@@ -2,7 +2,11 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from .models import Trainer, Parent, Athlete, Staff, TrainingGroup, GroupSchedule
-from .widgets import WeekdayToggleWidget
+from .widgets import WeekdayToggleWidget  # noqa: F401 - used by templates/admin
+import logging
+
+# CLEANUP: use logging instead of print for internal notices
+logger = logging.getLogger(__name__)
 
 
 class Step1UserForm(UserCreationForm):
@@ -133,7 +137,7 @@ class GroupScheduleForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         # Извлекаем параметры из GET запроса (для предзаполнения)
-        initial = kwargs.get('initial', {})
+        initial = kwargs.get('initial', {})  # noqa: F841 - reserved for future use
         
         super().__init__(*args, **kwargs)
         
@@ -276,7 +280,10 @@ class GroupScheduleForm(forms.ModelForm):
                 current_date += timedelta(days=1)
             
             if created_count > 0:
-                print(f"🎯 Автоматически создано {created_count} тренировочных сессий для группы {training_group} на {months_ahead+1}-й месяц")
+                logger.info(
+                    # CLEANUP: internal info message instead of stdout print
+                    f"CLEANUP: авто-создано {created_count} тренировочных сессий для группы {training_group} на {months_ahead+1}-й месяц"
+                )
 
 
 # ===== Новые формы для расширенного шага 3 (профили) =====

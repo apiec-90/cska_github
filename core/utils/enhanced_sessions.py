@@ -1,7 +1,8 @@
-from datetime import timedelta, date, datetime
+from datetime import timedelta, date
 from django.utils import timezone
 from django.db import transaction
-from ..models import GroupSchedule, TrainingSession, TrainingGroup
+from django.core.cache import cache
+from ..models import GroupSchedule, TrainingSession
 
 def get_session_state(session, current_time=None):
     """
@@ -279,41 +280,52 @@ def auto_ensure_yearly_schedule(group):
     И создает расписание на следующий год если нужно
     Вызывается при каждом обращении к журналу
     """
+    # Ключ кеша на 24 часа, чтобы не дергать генерацию на каждом GET
+    cache_key = f"auto_sessions_created_group_{group.id}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     today = timezone.localdate()
     created_sessions = 0
-    
-    # 1. Проверяем и создаем сессии до конца текущего года
-    december_sessions = TrainingSession.objects.filter(
-        training_group=group,
-        date__year=today.year,
-        date__month=12
+
+    # Быстрая проверка: если в текущем месяце есть хотя бы одна сессия —
+    # пропускаем тяжелые проверки конца года
+    month_has_any = TrainingSession.objects.filter(
+        training_group=group, date__year=today.year, date__month=today.month
     ).exists()
-    
-    # Если нет сессий на декабрь текущего года, создаем расписание до конца года
-    if not december_sessions:
-        created_sessions += ensure_yearly_sessions_for_group(group, today)
-    
+
+    if not month_has_any:
+        # 1. Проверяем и создаем сессии до конца текущего года
+        december_sessions = TrainingSession.objects.filter(
+            training_group=group,
+            date__year=today.year,
+            date__month=12
+        ).exists()
+        if not december_sessions:
+            created_sessions += ensure_yearly_sessions_for_group(group, today)
+
     # 2. Если мы во втором полугодии, создаем сессии на следующий год
-    if today.month >= 7:  # С июля начинаем подготовку к следующему году
+    if today.month >= 7:
         next_year = today.year + 1
         next_year_sessions = TrainingSession.objects.filter(
             training_group=group,
             date__year=next_year
         ).exists()
-        
         if not next_year_sessions:
             next_year_start = date(next_year, 1, 1)
             created_sessions += ensure_yearly_sessions_for_group(group, next_year_start)
-    
-    # 3. Если уже новый год, убеждаемся что есть сессии на весь год
-    if today.month <= 3:  # В первом квартале проверяем весь год
+
+    # 3. В первом квартале убеждаемся, что есть сессии хотя бы на полгода вперед
+    if today.month <= 3:
         current_year_sessions = TrainingSession.objects.filter(
             training_group=group,
             date__year=today.year,
-            date__month__gte=6  # Проверяем что есть сессии хотя бы до середины года
+            date__month__gte=6
         ).exists()
-        
         if not current_year_sessions:
             created_sessions += ensure_yearly_sessions_for_group(group, today)
-    
+
+    # Кешируем результат на сутки
+    cache.set(cache_key, created_sessions, 60 * 60 * 24)
     return created_sessions

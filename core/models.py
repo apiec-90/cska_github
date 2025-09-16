@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
-from django.utils import timezone
+# CLEANUP: remove unused timezone import to satisfy linter
 
 class PaymentMethod(models.Model):
     """Способ оплаты"""

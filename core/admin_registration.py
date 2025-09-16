@@ -3,10 +3,11 @@ Django Admin registration views for multi-step user registration.
 Contains views for creating users through the admin interface.
 """
 from typing import Any, Optional
+import logging
 from django.views import View
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils.decorators import method_decorator
-from django.shortcuts import render, redirect
+from django.shortcuts import render
 from django.urls import reverse
 from django.contrib import messages
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
@@ -14,6 +15,9 @@ from django.contrib.auth.models import User
 from core.models import RegistrationDraft
 from core.forms import Step1UserForm, Step2RoleForm
 from core import utils
+
+# CLEANUP: use structured logging instead of print
+logger = logging.getLogger(__name__)
 
 
 class RegistrationAdminView(View):
@@ -34,7 +38,7 @@ class Step1RegistrationView(RegistrationAdminView):
             try:
                 draft = RegistrationDraft.objects.get(pk=draft_id, is_completed=False)
                 draft.safe_dispose()
-                print(f"Cleaned up existing draft #{draft_id}")
+                logger.debug(f"CLEANUP: cleaned up existing draft #{draft_id}")
             except RegistrationDraft.DoesNotExist:
                 pass
             request.session.pop('draft_id', None)
@@ -62,7 +66,7 @@ class Step1RegistrationView(RegistrationAdminView):
             )
             
             request.session['draft_id'] = draft.id
-            print(f"Created draft #{draft.id} for user {user.username}")
+            logger.info(f"CLEANUP: created draft #{draft.id} for user {user.username}")
             messages.success(request, f'User {user.username} created. Proceeding to role selection.')
             
             return HttpResponseRedirect(reverse('admin:register_step2', args=[draft.id]))
@@ -180,9 +184,9 @@ class Step2RegistrationView(RegistrationAdminView):
                         'role': 'manager',  # Default staff role
                     }
                 )
-            print(f"✅ Created {role} profile for user {user.username}")
+            logger.info(f"CLEANUP: created {role} profile for user {user.username}")
         except Exception as e:
-            print(f"❌ Error creating profile for {user.username} with role {role}: {e}")
+            logger.exception(f"CLEANUP: error creating profile for {user.username} with role {role}: {e}")
 
 
 class Step3RegistrationView(RegistrationAdminView):
@@ -301,9 +305,9 @@ class Step3RegistrationView(RegistrationAdminView):
                         'role': 'manager',  # Default staff role
                     }
                 )
-            print(f"✅ Created {role} profile for user {user.username}")
+            logger.info(f"CLEANUP: created {role} profile for user {user.username}")
         except Exception as e:
-            print(f"❌ Error creating profile for {user.username} with role {role}: {e}")
+            logger.exception(f"CLEANUP: error creating profile for {user.username} with role {role}: {e}")
 
 
 def register_done_view(request: HttpRequest) -> HttpResponse:

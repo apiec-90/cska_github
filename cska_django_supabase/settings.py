@@ -48,6 +48,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'core',  # Основное приложение с моделями (содержит кастомные фильтры)
+    'documents_ui',  # Группа Документы (только заголовок)
+    'payments_ui',   # Группа Оплата (только заголовок)
     'athletes',  # Спортсмены
     'attendance',  # Посещаемость
     'groups',  # Группы
@@ -57,6 +59,10 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    # CLEANUP: enable per-request timezone handling (default activation)
+    'django.middleware.timezone.TimeZoneMiddleware',
+    # CLEANUP: activate timezone from session if provided
+    'core.middleware.SessionTimeZoneMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -151,7 +157,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'ru-ru'
 
-TIME_ZONE = 'Europe/Moscow'
+# CLEANUP: allow overriding default timezone via environment variable for scalability
+TIME_ZONE = os.environ.get('TIME_ZONE', 'Europe/Moscow')
 
 USE_I18N = True
 
@@ -246,13 +253,27 @@ JAZZMIN_SETTINGS = {
         "groups",  # Скрываем дублированное приложение - модели в core
         "payments",  # Скрываем дублированное приложение - модели в core
     ],
-    "custom_links": {
-        "core": [{
-            "name": "Все документы", 
-            "url": "admin:core_document_changelist", 
-            "icon": "fas fa-file",
-            "permissions": ["core.view_document"]
-        }]
+    # Скрываем модели, которые не нужны в основном меню
+    "hide_models": [
+        "core.Staff",  # Скрываем персонал
+        "core.AttendanceRecord",  # Скрываем записи посещаемости
+        "core.TrainingSession",  # Скрываем сессии
+        "core.AthleteParent",  # Скрываем связи
+        "core.AthleteTrainingGroup",  # Скрываем связи
+        "core.GroupSchedule",  # Скрываем расписание
+        "core.AuditRecord",  # Скрываем аудит
+        "core.RegistrationDraft",  # Скрываем черновики
+    ],
+    # Переопределяем название и порядок основных моделей
+    "models": {
+        "core.TrainingGroup": {"name": "1. Тренировочные группы", "icon": "fas fa-users"},
+        "core.Trainer": {"name": "2. Тренеры", "icon": "fas fa-chalkboard-teacher"},
+        "core.Athlete": {"name": "3. Спортсмены", "icon": "fas fa-running"},
+        "core.Parent": {"name": "4. Родители", "icon": "fas fa-user-friends"},
+        "core.Document": {"name": "5. Документы", "icon": "fas fa-file-upload"},
+        "core.DocumentType": {"name": "6. Типы документов", "icon": "fas fa-file-alt"},
+        "core.Payment": {"name": "7. Платежи", "icon": "fas fa-money-bill-wave"},
+        "core.PaymentMethod": {"name": "8. Способы оплаты", "icon": "fas fa-credit-card"},
     },
 
 }
@@ -289,6 +310,23 @@ JAZZMIN_UI_TWEAKS = {
     }
 }
 
+# Для Jazzmin: используем verbose_name «виртуальных» приложений как разделы
+JAZZMIN_SETTINGS["order_with_respect_to"] = [
+    "auth",
+    "documents_ui",   # Документы
+    "payments_ui",    # Оплата
+    "core",           # Спортивная CRM (модели из core)
+]
+
+# Кеширование (локальная память) — ускоряет повторные запросы в админке и журнале
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'sportcrm-local-cache',
+        'TIMEOUT': 300,  # 5 минут
+    }
+}
+
 # Настройки безопасности для разработки - отключаем HTTPS
 SECURE_SSL_REDIRECT = False
 SECURE_PROXY_SSL_HEADER = None
@@ -300,3 +338,11 @@ SECURE_HSTS_PRELOAD = False
 SECURE_REFERRER_POLICY = None
 SECURE_CROSS_ORIGIN_OPENER_POLICY = None
 SECURE_FRAME_DENY = False
+# Настройки CSRF для разработки
+CSRF_TRUSTED_ORIGINS = [
+    'http://127.0.0.1:8000',
+    'http://localhost:8000',
+]
+CSRF_COOKIE_SECURE = False  # Только для разработки  
+CSRF_COOKIE_HTTPONLY = False  # Для отладки
+SESSION_COOKIE_SECURE = False  # Только для разработки

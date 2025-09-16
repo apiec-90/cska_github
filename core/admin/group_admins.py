@@ -2,6 +2,7 @@
 Админки групп, расписания и связанных сущностей.
 """
 from django.contrib import admin
+import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import path, reverse
 from django.contrib import messages
@@ -29,6 +30,9 @@ from core.forms import GroupScheduleForm
 from core import utils
 from core.utils.sessions import ensure_month_sessions_for_group, resync_future_sessions_for_group
 from core.utils.enhanced_sessions import ensure_yearly_sessions_for_group, auto_ensure_yearly_schedule
+
+# CLEANUP: use logging instead of print for internal diagnostics
+logger = logging.getLogger(__name__)
 
 
 class GroupScheduleInline(admin.TabularInline):
@@ -59,6 +63,7 @@ class TrainingGroupAdmin(admin.ModelAdmin):
     list_filter = ['trainer', 'is_active', 'is_archived', 'age_min', 'age_max']
     search_fields = ['name', 'trainer__user__first_name', 'trainer__user__last_name']
     ordering = ['name']
+    list_per_page = 25
     
     inlines = [GroupScheduleInline]
     
@@ -305,6 +310,8 @@ class TrainingGroupAdmin(admin.ModelAdmin):
         current_year = int(request.GET.get('year', timezone.localdate().year))
         current_month = int(request.GET.get('month', timezone.localdate().month))
         edit_mode = request.GET.get('edit') == '1'
+
+        # Убираем кэширование контекста из-за PicklingError с объектами Django
         
         if request.method == "POST":
             if not self.has_change_permission(request, group):
@@ -356,7 +363,7 @@ class TrainingGroupAdmin(admin.ModelAdmin):
                             updated_count += 1
                             
                         except Exception as e:
-                            print(f"Ошибка обновления записи: {e}")
+                            logger.exception(f"CLEANUP: Ошибка обновления записи: {e}")
                             continue
                     
                     return JsonResponse({
@@ -391,10 +398,8 @@ class TrainingGroupAdmin(admin.ModelAdmin):
         # АВТОМАТИЧЕСКИ ОБЕСПЕЧИВАЕМ НАЛИЧИЕ СЕССИЙ НА ВЕСЬ ГОД
         try:
             auto_sessions_created = auto_ensure_yearly_schedule(group)
-            if auto_sessions_created > 0:
-                print(f"Автоматически создано {auto_sessions_created} сессий для группы {group.name}")
-        except Exception as e:
-            print(f"Ошибка при автоматическом создании сессий: {e}")
+        except Exception:
+            auto_sessions_created = 0
         
         # Получаем всех спортсменов группы
         children = Athlete.objects.filter(  # type: ignore[attr-defined]

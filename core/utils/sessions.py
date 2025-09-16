@@ -1,7 +1,11 @@
 from datetime import timedelta, date
 from django.utils import timezone
 from django.db import transaction
-from ..models import GroupSchedule, TrainingSession, TrainingGroup
+from ..models import GroupSchedule, TrainingSession
+import logging
+
+# CLEANUP: structured logging
+logger = logging.getLogger(__name__)
 
 def month_bounds(d: date):
     """Возвращает границы месяца для заданной даты"""
@@ -102,6 +106,6 @@ def ensure_next_month_sessions_for_all_groups():
                 created = ensure_next_month_sessions_for_group(group)
                 total_created += created
             except Exception as e:
-                print(f"Ошибка при создании сессий для группы {group}: {e}")
+                logger.exception(f"CLEANUP: ошибка при создании сессий для группы {group}: {e}")
     
     return total_created

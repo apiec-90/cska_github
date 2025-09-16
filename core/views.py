@@ -1,16 +1,13 @@
 from django.contrib import messages
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import User
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+# CLEANUP: remove unused reverse import
 from django.views.decorators.http import require_http_methods
 
 from .forms import (
-    AthleteForm,
-    ParentForm,
     Step1UserForm,
     Step2RoleForm,
-    TrainerForm,
     CommonProfileForm,
     StaffSubroleForm,
 )

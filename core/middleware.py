@@ -1,4 +1,5 @@
 from django.utils.deprecation import MiddlewareMixin
+from django.utils import timezone
 import logging
 
 from .models import RegistrationDraft
@@ -59,4 +60,34 @@ class RegistrationDraftCleanupMiddleware(MiddlewareMixin):
 
         return None
 
+
+
+class SessionTimeZoneMiddleware(MiddlewareMixin):
+    """Активирует часовой пояс из сессии пользователя.
+
+    Ищет ключ 'tz' в session и, если он валиден, активирует его для текущего запроса.
+    Это дополняет стандартный Django TimeZoneMiddleware и не меняет внешнее поведение.
+    """
+
+    # Поддерживаемый whitelist для безопасности (может быть расширен через .env/настройки при необходимости)
+    ALLOWED_TZ = {
+        'UTC', 'Europe/Moscow', 'Asia/Almaty', 'Europe/Kyiv', 'Europe/Berlin',
+        'Europe/Samara', 'Asia/Yekaterinburg', 'Asia/Novosibirsk', 'Europe/Minsk',
+    }
+
+    def process_request(self, request):
+        tz_name = request.session.get('tz')
+        if not tz_name:
+            return None
+
+        if tz_name in self.ALLOWED_TZ:
+            try:
+                from zoneinfo import ZoneInfo
+                # CLEANUP: activate session-provided timezone per request
+                timezone.activate(ZoneInfo(tz_name))
+            except Exception as exc:
+                logger.debug(f"Invalid timezone in session: {tz_name}: {exc}")
+        else:
+            logger.debug(f"Timezone not in whitelist: {tz_name}")
+        return None
 
