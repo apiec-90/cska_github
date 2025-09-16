@@ -6,7 +6,12 @@ from .models import Athlete
 
 def list_athletes(request):
     """Список спортсменов"""
-    athletes = Athlete.objects.filter(is_active=True).order_by('last_name', 'first_name')
+    # N+1 safe: fetch related user once
+    athletes = (
+        Athlete.objects.filter(is_active=True)
+        .select_related('user')
+        .order_by('last_name', 'first_name')
+    )
     context = {
         'title': 'Спортсмены',
         'athletes': athletes,

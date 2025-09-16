@@ -6,7 +6,12 @@ from .models import Payment
 
 def list_payments(request):
     """Список оплат"""
-    payments = Payment.objects.all().order_by('-month', 'athlete__last_name')
+    # N+1 safe: fetch related athlete and user for listing
+    payments = (
+        Payment.objects.select_related('athlete__user')
+        .all()
+        .order_by('-month', 'athlete__last_name')
+    )
     context = {
         'title': 'Оплаты',
         'payments': payments,
@@ -24,7 +29,7 @@ def create_payment(request):
 @login_required
 def payment_detail(request, pk):
     """Детальная информация об оплате"""
-    payment = get_object_or_404(Payment, pk=pk)
+    payment = get_object_or_404(Payment.objects.select_related('athlete__user'), pk=pk)
     context = {
         'title': 'Детали оплаты',
         'payment': payment,
@@ -34,7 +39,7 @@ def payment_detail(request, pk):
 @login_required
 def edit_payment(request, pk):
     """Редактирование оплаты"""
-    payment = get_object_or_404(Payment, pk=pk)
+    payment = get_object_or_404(Payment.objects.select_related('athlete__user'), pk=pk)
     context = {
         'title': 'Редактировать оплату',
         'payment': payment,

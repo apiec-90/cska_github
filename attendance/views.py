@@ -6,7 +6,12 @@ from .models import Attendance
 
 def list_attendance(request):
     """Список посещаемости"""
-    attendance_records = Attendance.objects.all().order_by('-date', 'athlete__last_name')
+    # N+1 safe: fetch related athlete and user for listing
+    attendance_records = (
+        Attendance.objects.select_related('athlete__user')
+        .all()
+        .order_by('-date', 'athlete__last_name')
+    )
     context = {
         'title': 'Посещаемость',
         'attendance_records': attendance_records,
@@ -24,7 +29,7 @@ def create_attendance(request):
 @login_required
 def attendance_detail(request, pk):
     """Детальная информация о посещаемости"""
-    attendance = get_object_or_404(Attendance, pk=pk)
+    attendance = get_object_or_404(Attendance.objects.select_related('athlete__user'), pk=pk)
     context = {
         'title': 'Детали посещаемости',
         'attendance': attendance,
@@ -34,7 +39,7 @@ def attendance_detail(request, pk):
 @login_required
 def edit_attendance(request, pk):
     """Редактирование записи о посещаемости"""
-    attendance = get_object_or_404(Attendance, pk=pk)
+    attendance = get_object_or_404(Attendance.objects.select_related('athlete__user'), pk=pk)
     context = {
         'title': 'Редактировать посещаемость',
         'attendance': attendance,
