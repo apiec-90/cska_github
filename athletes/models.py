@@ -2,6 +2,7 @@ from django.db import models
 from django.core.validators import RegexValidator
 from groups.models import Group
 import os
+from datetime import date
 
 def athlete_photo_path(instance, filename):
     """Путь для сохранения фото спортсмена"""

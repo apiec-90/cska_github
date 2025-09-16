@@ -1,6 +1,6 @@
 from django.db import models
 from athletes.models import Athlete
-from datetime import date
+ 
 
 class Payment(models.Model):
     """Модель оплаты спортсменов"""

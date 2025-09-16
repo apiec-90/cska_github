@@ -51,6 +51,11 @@ class PaymentAdmin(admin.ModelAdmin):
     
     readonly_fields = ['created_at', 'updated_at', 'remaining_amount']
     
+    def get_queryset(self, request):
+        """Оптимизация: предзагружаем спортсмена для списков."""
+        qs = super().get_queryset(request)
+        return qs.select_related('athlete')
+    
     def month_short(self, obj):
         """Короткое отображение месяца"""
         return obj.month_short

@@ -58,6 +58,11 @@ class AthleteAdmin(admin.ModelAdmin):
     
     inlines = [DocumentInline]
     
+    def get_queryset(self, request):
+        """Оптимизация: предзагружаем группу для столбца group."""
+        qs = super().get_queryset(request)
+        return qs.select_related('group')
+    
     def full_name(self, obj):
         """Полное имя спортсмена"""
         return obj.full_name

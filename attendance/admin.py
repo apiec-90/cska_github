@@ -47,6 +47,11 @@ class AttendanceAdmin(admin.ModelAdmin):
     
     readonly_fields = ['created_at', 'updated_at']
     
+    def get_queryset(self, request):
+        """Оптимизация: предзагружаем спортсмена для списков."""
+        qs = super().get_queryset(request)
+        return qs.select_related('athlete')
+    
     def status_icon(self, obj):
         """Иконка статуса посещения"""
         return obj.status_icon
