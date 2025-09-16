@@ -90,6 +90,13 @@ class TrainingGroupAdmin(admin.ModelAdmin):
         """Количество родителей в группе"""
         return obj.get_parents_count()
     
+    def get_queryset(self, request):
+        """Оптимизация запросов для списка групп.
+        Загружаем тренера и его пользователя, чтобы избежать N+1 в list_display/str().
+        """
+        qs = super().get_queryset(request)
+        return qs.select_related('trainer__user')
+    
     def get_urls(self):
         """Добавляем кастомные URLs"""
         urls = super().get_urls()
@@ -696,6 +703,11 @@ class AttendanceRecordAdmin(admin.ModelAdmin):
     change_list_template = 'admin/core/attendancerecord/change_list.html'
     change_form_template = 'admin/core/attendancerecord/change_form.html'
 
+    def get_queryset(self, request):
+        """Оптимизация: предзагружаем связанные объекты для колонок."""
+        qs = super().get_queryset(request)
+        return qs.select_related('athlete__user', 'session__training_group', 'marked_by__user')
+
 
 # Inline для записей посещаемости в сессии
 class AttendanceRecordInline(admin.TabularInline):
@@ -723,3 +735,8 @@ class TrainingSessionAdmin(admin.ModelAdmin):
     inlines = [AttendanceRecordInline]
     
     change_form_template = 'admin/core/trainingsession/change_form.html'
+
+    def get_queryset(self, request):
+        """Оптимизация: загружаем группу и тренера (и его пользователя)."""
+        qs = super().get_queryset(request)
+        return qs.select_related('training_group__trainer__user')
