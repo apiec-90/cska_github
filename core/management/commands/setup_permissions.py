@@ -15,7 +15,7 @@ class Command(BaseCommand):
         
         for ct in content_types:
             model_name = ct.model
-            app_label = ct.app_label
+            _ = ct.app_label  # CLEANUP: accessed for completeness; unused
             
             # Создаем маппинг разрешений
             for action in ['add', 'change', 'delete', 'view']:

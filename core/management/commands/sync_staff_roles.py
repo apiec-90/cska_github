@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
-from django.contrib.auth.models import User, Group
-from core.models import Staff, Parent, Athlete
+from django.contrib.auth.models import User
+from core.models import Staff
 from core.signals import GROUP_MODEL_MAPPING
 
 class Command(BaseCommand):
@@ -33,7 +33,7 @@ class Command(BaseCommand):
                             if role:
                                 # Для Staff с ролью и дефолтными значениями
                                 from datetime import date
-                                new_record = model_class.objects.create(
+                                model_class.objects.create(
                                     user=user, 
                                     role=role,
                                     birth_date=date(1990, 1, 1),  # Дефолтная дата
@@ -46,7 +46,7 @@ class Command(BaseCommand):
                                 )
                             else:
                                 # Для Parent и Athlete без ролей
-                                new_record = model_class.objects.create(user=user)
+                                model_class.objects.create(user=user)
                                 self.stdout.write(
                                     self.style.SUCCESS(
                                         f'Создана запись {model_class.__name__} для {user.username} в группе {group.name}'

@@ -3,13 +3,7 @@ from django.test import Client
 from django.contrib.auth.models import User, Group
 from django.urls import reverse
 
-from core.models import (
-    Athlete, Parent, Trainer, Staff, 
-    TrainingGroup, GroupSchedule, TrainingSession,
-    AthleteParent, AthleteTrainingGroup, AttendanceRecord,
-    Payment, Document, DocumentType, AuditRecord,
-    RegistrationDraft
-)
+from core.models import AthleteParent, AthleteTrainingGroup
 
 
 class Command(BaseCommand):
@@ -175,7 +169,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"\n❌ Тест '{test_name}' завершился с ошибкой: {e}")
         
         # Итоговый отчет
-        self.stdout.write(f"\n📋 ИТОГОВЫЙ ОТЧЕТ ТЕСТИРОВАНИЯ")
+        self.stdout.write("\n📋 ИТОГОВЫЙ ОТЧЕТ ТЕСТИРОВАНИЯ")
         self.stdout.write("=" * 60)
         
         if passed_tests == total_tests:
@@ -194,7 +188,7 @@ class Command(BaseCommand):
             self.stdout.write("👤 Логин: admin")
             self.stdout.write("🔑 Пароль: (используйте существующий пароль суперпользователя)")
         else:
-            self.stdout.write(self.style.WARNING(f"⚠️ ТЕСТЫ ПРОЙДЕНЫ ЧАСТИЧНО"))
+            self.stdout.write(self.style.WARNING("⚠️ ТЕСТЫ ПРОЙДЕНЫ ЧАСТИЧНО"))
             self.stdout.write(f"✅ {passed_tests}/{total_tests} тестов пройдено")
             self.stdout.write(f"❌ {total_tests - passed_tests} тестов не пройдено")
             self.stdout.write("\nСистема работает, но есть некоторые вопросы для решения.")

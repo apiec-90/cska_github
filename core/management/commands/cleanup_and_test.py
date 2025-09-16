@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.contrib.auth.models import User, Group
-from django.test.utils import override_settings
+ 
 import os
 
 from core.models import (
@@ -426,7 +426,7 @@ class Command(BaseCommand):
             self.stdout.write(f"   ⚠️ {groups_without_schedule} групп без расписания")
         
         # Итоговый отчет
-        self.stdout.write(f"\n📋 ИТОГОВЫЙ ОТЧЕТ")
+        self.stdout.write("\n📋 ИТОГОВЫЙ ОТЧЕТ")
         self.stdout.write("=" * 50)
         if not issues:
             self.stdout.write(self.style.SUCCESS("✅ Система работает корректно, проблем не найдено!"))
@@ -470,7 +470,7 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING("⚠️ Аудит выявил проблемы"))
             
             # Финальная статистика
-            self.stdout.write(f"\n📊 ФИНАЛЬНАЯ СТАТИСТИКА:")
+            self.stdout.write("\n📊 ФИНАЛЬНАЯ СТАТИСТИКА:")
             self.stdout.write(f"👥 Пользователей: {User.objects.count()}")
             self.stdout.write(f"🏃 Спортсменов: {Athlete.objects.count()}")
             self.stdout.write(f"👨‍👩‍👧‍👦 Родителей: {Parent.objects.count()}")

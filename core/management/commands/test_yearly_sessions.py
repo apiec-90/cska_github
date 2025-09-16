@@ -54,7 +54,7 @@ class Command(BaseCommand):
             if created > 0:
                 self.stdout.write(self.style.SUCCESS(f"  ✅ Создано {created} новых сессий"))
             else:
-                self.stdout.write(f"  ℹ️ Новые сессии не требуются")
+                self.stdout.write("  ℹ️ Новые сессии не требуются")
             
             # Если нужно принудительно создать сессии на следующий год
             if force_next_year:
