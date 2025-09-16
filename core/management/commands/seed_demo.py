@@ -1,6 +1,5 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User, Group
-from django.utils import timezone
 from datetime import date, time
 
 from core.models import (
@@ -39,7 +38,9 @@ class Command(BaseCommand):
                 "last_name": "ЦСКА",
                 "email": f"manager{i}@example.com",
             })
-            u.set_password("pass1234"); u.is_active = True; u.save()
+            u.set_password("pass1234")
+            u.is_active = True
+            u.save()
             staff, _ = Staff.objects.get_or_create(user=u, defaults={
                 "phone": f"+790000000{i}",
                 "birth_date": date(1990, 1, i),
@@ -58,7 +59,9 @@ class Command(BaseCommand):
                 "last_name": "ЦСКА",
                 "email": f"trainer{i}@example.com",
             })
-            u.set_password("pass1234"); u.is_active = True; u.save()
+            u.set_password("pass1234")
+            u.is_active = True
+            u.save()
             t, _ = Trainer.objects.get_or_create(user=u, defaults={
                 "phone": f"+791000000{i}",
                 "birth_date": date(1985, 2, i),
@@ -102,7 +105,9 @@ class Command(BaseCommand):
                 "last_name": "Иванов",
                 "email": f"parent{i}@example.com",
             })
-            u.set_password("pass1234"); u.is_active = True; u.save()
+            u.set_password("pass1234")
+            u.is_active = True
+            u.save()
             p, _ = Parent.objects.get_or_create(user=u, defaults={
                 "first_name": u.first_name,
                 "last_name": u.last_name,
@@ -118,7 +123,9 @@ class Command(BaseCommand):
                 "last_name": "Петров",
                 "email": f"athlete{i}@example.com",
             })
-            u.set_password("pass1234"); u.is_active = True; u.save()
+            u.set_password("pass1234")
+            u.is_active = True
+            u.save()
             a, _ = Athlete.objects.get_or_create(user=u, defaults={
                 "first_name": u.first_name,
                 "last_name": u.last_name,

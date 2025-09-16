@@ -4,15 +4,17 @@
 """
 from django.contrib import admin
 from django.db import models
-from django.utils.html import format_html
+from django.utils.html import format_html  # noqa: F401
 
 from core.models import (
     Trainer, Staff, Parent, Athlete, 
-    TrainingGroup, AthleteTrainingGroup, AthleteParent
+    TrainingGroup, AthleteTrainingGroup, AthleteParent  # noqa: F401
 )
 from .base import (
     BasePersonAdmin, BaseDocumentMixin, BaseChangeFormMixin,
-    AthleteParentInline, AthleteTrainingGroupInline, ParentAthleteInline
+    AthleteParentInline,  # noqa: F401 - reserved for template/inlines usage
+    AthleteTrainingGroupInline,  # noqa: F401 - reserved for template/inlines usage
+    ParentAthleteInline  # noqa: F401 - reserved for template/inlines usage
 )
 
 

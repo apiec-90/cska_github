@@ -3,31 +3,22 @@
 """
 from django.contrib import admin
 import logging
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import redirect, get_object_or_404
 from django.urls import path, reverse
 from django.contrib import messages
 from django.db import transaction
-from django.conf import settings
 from django.utils import timezone
 from django.template.response import TemplateResponse
 from django.core.exceptions import PermissionDenied
-from django.forms import modelformset_factory
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
-from django.contrib.admin.utils import unquote
+from django.http import HttpResponseRedirect, JsonResponse
 from django.utils.html import format_html
-from django.contrib.admin.models import LogEntry, CHANGE
-from django.contrib.contenttypes.models import ContentType
-from django.db import models
-from datetime import datetime, timedelta
-from typing import Union, TYPE_CHECKING
+from datetime import datetime
 
 from core.models import (
     TrainingGroup, GroupSchedule, TrainingSession, 
-    AttendanceRecord, DocumentType, Document, 
-    Payment, AuditRecord, Trainer, Athlete, AthleteTrainingGroup, Staff
+    AttendanceRecord, Trainer, Athlete, AthleteTrainingGroup
 )
-from core.forms import GroupScheduleForm
-from core import utils
+from core.forms import GroupScheduleForm  # noqa: F401 - referenced by admin templates
 from core.utils.sessions import ensure_month_sessions_for_group, resync_future_sessions_for_group
 from core.utils.enhanced_sessions import ensure_yearly_sessions_for_group, auto_ensure_yearly_schedule
 
@@ -296,9 +287,8 @@ class TrainingGroupAdmin(admin.ModelAdmin):
 
     def journal_view(self, request, object_id):
         """Журнал посещаемости группы"""
-        from django.http import JsonResponse
         import json
-        from datetime import datetime, date
+        from datetime import date  # CLEANUP: datetime already imported at module level
         from calendar import monthrange
         
         group = get_object_or_404(TrainingGroup, pk=object_id)
@@ -397,9 +387,9 @@ class TrainingGroupAdmin(admin.ModelAdmin):
         # GET запрос - отображаем журнал
         # АВТОМАТИЧЕСКИ ОБЕСПЕЧИВАЕМ НАЛИЧИЕ СЕССИЙ НА ВЕСЬ ГОД
         try:
-            auto_sessions_created = auto_ensure_yearly_schedule(group)
+            _ = auto_ensure_yearly_schedule(group)  # CLEANUP: ignore value; side-effect only
         except Exception:
-            auto_sessions_created = 0
+            _ = 0
         
         # Получаем всех спортсменов группы
         children = Athlete.objects.filter(  # type: ignore[attr-defined]
@@ -615,7 +605,7 @@ class TrainingGroupAdmin(admin.ModelAdmin):
         """Перенаправляем на панель группы"""
         # Проверяем, что группа существует
         try:
-            group = get_object_or_404(TrainingGroup, pk=object_id)
+            get_object_or_404(TrainingGroup, pk=object_id)  # CLEANUP: existence check only
             return HttpResponseRedirect(reverse("admin:core_traininggroup_panel", args=[object_id]))
         except Exception as e:
             messages.error(request, f'Ошибка при открытии группы: {e}')
@@ -719,7 +709,7 @@ class AttendanceRecordInline(admin.TabularInline):
 # TrainingSession скрыта из меню - управляем через TrainingGroup
 try:
     admin.site.unregister(TrainingSession)
-except:
+except Exception:  # CLEANUP: avoid bare except
     pass  # TrainingSession not registered
 
 

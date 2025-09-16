@@ -7,4 +7,6 @@ class CoreConfig(AppConfig):
 
     def ready(self):
         """Импортируем сигналы при запуске приложения"""
-        import core.signals  # CLEANUP: import for side-effects; noqa: F401
+        # CLEANUP: import signals module for side effects without linter warning
+        from importlib import import_module
+        import_module('core.signals')
