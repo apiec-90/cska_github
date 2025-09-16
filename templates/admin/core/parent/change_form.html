@@ -168,9 +168,9 @@
                         <td>{{ d.uploaded_at|date:"d.m.Y H:i" }}</td>
                         <td>
                           <div class="btn-group btn-group-sm" role="group">
-                            <a href="/media/{{ d.file }}" target="_blank" class="btn btn-outline-primary" title="Открыть">
-                              <i class="fas fa-eye"></i>
-                            </a>
+                              <a href="{% if 'http' in d.file %}{{ d.file }}{% else %}/media/{{ d.file }}{% endif %}" target="_blank" class="btn btn-outline-primary" title="Открыть">
+                                <i class="fas fa-eye"></i>
+                              </a>
                             <button type="button" class="btn btn-outline-danger" title="Удалить" 
                                     data-document-id="{{ d.id }}" data-document-name="{{ d.document_type.name|default:"документ" }}">
                               <i class="fas fa-trash"></i>

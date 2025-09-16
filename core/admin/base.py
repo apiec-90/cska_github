@@ -15,7 +15,10 @@ from django.contrib import messages
 from django.urls import URLPattern, path
 import os
 import uuid
+import logging
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 # Create custom User admin with additional URLs for registration
 class UserRoleListFilter(admin.SimpleListFilter):
@@ -482,25 +485,41 @@ class BaseDocumentMixin:
         )
     
     def _delete_physical_file(self, file_path: str) -> None:
-        """Delete physical file"""
+        """Delete physical file (both local and Supabase)"""
         try:
-            # Handle different path formats
             file_url = str(file_path)
-            media_root = getattr(settings, 'MEDIA_ROOT', 'media')
-            media_url = getattr(settings, 'MEDIA_URL', '/media/')
             
-            if file_url.startswith(media_url):
-                rel_path = file_url[len(media_url):]
-            elif '/media/' in file_url:
-                rel_path = file_url.split('/media/', 1)[1]
+            # Check if it's a Supabase Storage URL
+            if 'supabase' in file_url.lower() and '/storage/v1/object/public/' in file_url:
+                try:
+                    # Extract file path from Supabase URL
+                    # Format: https://xxx.supabase.co/storage/v1/object/public/media/documents/filename
+                    path_parts = file_url.split('/storage/v1/object/public/media/')
+                    if len(path_parts) > 1:
+                        supabase_file_path = path_parts[1]
+                        from core.utils.supabase_storage import delete_from_supabase_storage
+                        success, result = delete_from_supabase_storage(supabase_file_path)
+                        if not success:
+                            logger.warning(f"Failed to delete from Supabase: {result}")
+                except Exception as e:
+                    logger.warning(f"Supabase deletion error: {e}")
             else:
-                rel_path = file_url.lstrip('/')
-            
-            full_path = os.path.join(media_root, rel_path)
-            if os.path.exists(full_path):
-                os.remove(full_path)
-        except Exception:
-            pass  # Not critical if file deletion fails
+                # Handle local file deletion
+                media_root = getattr(settings, 'MEDIA_ROOT', 'media')
+                media_url = getattr(settings, 'MEDIA_URL', '/media/')
+                
+                if file_url.startswith(media_url):
+                    rel_path = file_url[len(media_url):]
+                elif '/media/' in file_url:
+                    rel_path = file_url.split('/media/', 1)[1]
+                else:
+                    rel_path = file_url.lstrip('/')
+                
+                full_path = os.path.join(media_root, rel_path)
+                if os.path.exists(full_path):
+                    os.remove(full_path)
+        except Exception as e:
+            logger.warning(f"File deletion error: {e}")  # Log but don't fail
 
 
 class BaseChangeFormMixin:
