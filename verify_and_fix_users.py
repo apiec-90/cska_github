@@ -10,9 +10,9 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cska_django_supabase.settings')
 django.setup()
 
-from django.contrib.auth.models import User, Group
-from core.models import Athlete, Parent, Trainer, Staff, RegistrationDraft
-from datetime import date
+from django.contrib.auth.models import User, Group  # noqa: E402
+from core.models import Athlete, Parent, Trainer, Staff, RegistrationDraft  # noqa: E402
+from datetime import date  # noqa: E402
 
 def analyze_current_state():
     """Analyze the current database state"""
@@ -27,7 +27,7 @@ def analyze_current_state():
     print(f"💼 Staff: {Staff.objects.count()}")
     print(f"📋 Registration drafts: {RegistrationDraft.objects.count()}")
     
-    print(f"\n👥 ALL USERS:")
+    print("\n👥 ALL USERS:")
     for user in users:
         groups = [g.name for g in user.groups.all()]
         profile_type = "None"
@@ -50,7 +50,7 @@ def analyze_current_state():
 
 def find_mismatches():
     """Find mismatches between users and their profiles"""
-    print(f"\n🔍 FINDING MISMATCHES")
+    print("\n🔍 FINDING MISMATCHES")
     print("=" * 60)
     
     mismatches = []
@@ -102,7 +102,7 @@ def find_mismatches():
 
 def fix_mismatches(mismatches):
     """Fix the identified mismatches"""
-    print(f"\n🔧 FIXING MISMATCHES")
+    print("\n🔧 FIXING MISMATCHES")
     print("=" * 60)
     
     fixes_applied = 0
@@ -176,7 +176,7 @@ def fix_mismatches(mismatches):
 
 def test_admin_registration_system():
     """Test that the admin registration system creates profiles correctly"""
-    print(f"\n🧪 TESTING ADMIN REGISTRATION SYSTEM")
+    print("\n🧪 TESTING ADMIN REGISTRATION SYSTEM")
     print("=" * 60)
     
     # Import the profile creation method
@@ -232,7 +232,7 @@ def test_admin_registration_system():
         except Exception as e:
             print(f"  ❌ Error testing {role}: {e}")
     
-    print(f"\n✅ Admin registration system test completed")
+    print("\n✅ Admin registration system test completed")
 
 def main():
     """Main verification and fix function"""
@@ -240,7 +240,7 @@ def main():
     print("=" * 80)
     
     # Step 1: Analyze current state
-    users = analyze_current_state()
+    analyze_current_state()
     
     # Step 2: Find mismatches
     mismatches = find_mismatches()
@@ -251,7 +251,7 @@ def main():
         print(f"\n✅ Fixed {fixes_applied} issues")
         
         # Re-verify after fixes
-        print(f"\n🔄 RE-VERIFICATION AFTER FIXES")
+        print("\n🔄 RE-VERIFICATION AFTER FIXES")
         print("=" * 60)
         remaining_mismatches = find_mismatches()
         
@@ -264,7 +264,7 @@ def main():
     test_admin_registration_system()
     
     # Step 5: Final summary
-    print(f"\n📊 FINAL SUMMARY")
+    print("\n📊 FINAL SUMMARY")
     print("=" * 60)
     print(f"👥 Total users: {User.objects.count()}")
     print(f"🏃 Athletes: {Athlete.objects.count()}")
@@ -276,9 +276,9 @@ def main():
     final_mismatches = find_mismatches()
     
     if not final_mismatches:
-        print(f"\n🎉 SUCCESS: All users now have proper profiles and groups!")
-        print(f"🔧 The admin registration system is working correctly.")
-        print(f"✅ Future user registrations will create profiles automatically.")
+        print("\n🎉 SUCCESS: All users now have proper profiles and groups!")
+        print("🔧 The admin registration system is working correctly.")
+        print("✅ Future user registrations will create profiles automatically.")
         return True
     else:
         print(f"\n⚠️ WARNING: {len(final_mismatches)} issues still exist")
@@ -287,6 +287,6 @@ def main():
 if __name__ == "__main__":
     success = main()
     if success:
-        print(f"\n🎯 RESULT: User/profile mismatch issues have been resolved!")
+        print("\n🎯 RESULT: User/profile mismatch issues have been resolved!")
     else:
-        print(f"\n💥 RESULT: Some issues still need manual attention")
+        print("\n💥 RESULT: Some issues still need manual attention")

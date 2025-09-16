@@ -35,7 +35,7 @@ def upload_to_supabase():
     bucket_name = os.getenv("SUPABASE_STORAGE_BUCKET", SUPABASE_STORAGE_BUCKET)  # Имя bucket в Supabase
     upload_folder = os.getenv("UPLOAD_FOLDER", UPLOAD_FOLDER)  # Локальная папка с файлами для загрузки
     
-    print(f"🔧 Настройки:")
+    print("🔧 Настройки:")
     print(f"   Bucket: '{bucket_name}'")
     print(f"   Папка: '{upload_folder}'")
     
@@ -47,12 +47,12 @@ def upload_to_supabase():
     
     # Проверяем существование bucket в Supabase
     try:
-        bucket_info = supabase.storage.get_bucket(bucket_name)
+        supabase.storage.get_bucket(bucket_name)
         print(f"✅ Bucket '{bucket_name}' найден")
     except Exception as e:
         print(f"❌ Bucket '{bucket_name}' не найден: {e}")
         print(f"💡 Создайте bucket '{bucket_name}' в Supabase Dashboard")
-        print(f"💡 Или измените SUPABASE_STORAGE_BUCKET в .env")
+        print("💡 Или измените SUPABASE_STORAGE_BUCKET в .env")
         return
     
     print(f"📁 Начинаем загрузку файлов из папки: {upload_folder}")
@@ -79,7 +79,7 @@ def upload_to_supabase():
                 print(f"❌ Ошибка в {relative_path}: {e}")
                 error_count += 1
     
-    print(f"\n📊 Результат загрузки:")
+    print("\n📊 Результат загрузки:")
     print(f"✅ Загружено: {uploaded_count} файлов")
     print(f"❌ Ошибок: {error_count} файлов")
 
@@ -129,7 +129,7 @@ def check_bucket_status():
         # Проверяем целевой bucket
         bucket_name = os.getenv("SUPABASE_STORAGE_BUCKET", SUPABASE_STORAGE_BUCKET)
         try:
-            bucket_info = supabase.storage.get_bucket(bucket_name)
+            supabase.storage.get_bucket(bucket_name)
             print(f"✅ Bucket '{bucket_name}' найден и доступен")
             return True
         except Exception as e:

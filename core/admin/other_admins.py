@@ -49,6 +49,11 @@ class DocumentAdmin(admin.ModelAdmin):
             return f"{obj.content_type.name} #{obj.object_id}: {obj.content_object}"
         return f"{obj.content_type.name} #{obj.object_id}"
     get_object_display.short_description = "Объект"
+    
+    def get_queryset(self, request):
+        """Оптимизация запросов"""
+        qs = super().get_queryset(request)
+        return qs.select_related('document_type', 'content_type', 'uploaded_by')
 
 
 @admin.register(Payment)
@@ -68,6 +73,13 @@ class PaymentAdmin(admin.ModelAdmin):
         'payer__first_name', 'payer__last_name', 'invoice_number'
     ]
     ordering = ['-paid_at', 'athlete__user__last_name']
+    
+    def get_queryset(self, request):
+        """Оптимизация запросов"""
+        qs = super().get_queryset(request)
+        return qs.select_related(
+            'athlete__user', 'training_group', 'payer', 'payment_method'
+        )
 
 
 @admin.register(AuditRecord)
@@ -79,6 +91,11 @@ class AuditRecordAdmin(admin.ModelAdmin):
     search_fields = ['user__first_name', 'user__last_name', 'action', 'details']
     ordering = ['-timestamp']
     readonly_fields = ['timestamp']
+    
+    def get_queryset(self, request):
+        """Оптимизация запросов"""
+        qs = super().get_queryset(request)
+        return qs.select_related('user', 'content_type')
 
 
 @admin.register(RegistrationDraft)
@@ -96,3 +113,8 @@ class RegistrationDraftAdmin(admin.ModelAdmin):
     ]
     ordering = ['-created_at']
     readonly_fields = ['created_at', 'updated_at']
+    
+    def get_queryset(self, request):
+        """Оптимизация запросов"""
+        qs = super().get_queryset(request)
+        return qs.select_related('user', 'created_by')

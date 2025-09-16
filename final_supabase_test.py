@@ -4,7 +4,7 @@
 """
 import os
 import django
-from django.conf import settings
+ 
 
 # Настройка Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cska_django_supabase.settings')
@@ -49,7 +49,7 @@ def test_data_integrity():
         group_count = TrainingGroup.objects.count()
         payment_method_count = PaymentMethod.objects.count()
         
-        print(f"📊 Статистика данных в Supabase:")
+        print("📊 Статистика данных в Supabase:")
         print(f"  - Пользователей: {user_count}")
         print(f"  - Сотрудников: {staff_count}")
         print(f"  - Спортсменов: {athlete_count}")

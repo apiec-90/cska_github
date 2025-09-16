@@ -4,9 +4,7 @@
 """
 import os
 import django
-from django.conf import settings
-from datetime import date, timedelta, time
-import random
+from datetime import date, timedelta, time, datetime
 
 # Настройка Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cska_django_supabase.settings')

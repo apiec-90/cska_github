@@ -4,9 +4,7 @@
 """
 import os
 import django
-from django.conf import settings
 from datetime import date, timedelta
-import random
 
 # Настройка Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cska_django_supabase.settings')
@@ -532,7 +530,7 @@ def create_training_sessions():
         return 0
     
     created_count = 0
-    base_date = datetime.now().date()
+    base_date = datetime.now().date()  # noqa: F821 - imported in local scope below
     
     for group in groups:
         # Создаем сессии на следующие 4 недели

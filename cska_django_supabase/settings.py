@@ -59,9 +59,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    # CLEANUP: enable per-request timezone handling (default activation)
-    'django.middleware.timezone.TimeZoneMiddleware',
-    # CLEANUP: activate timezone from session if provided
+    # CLEANUP: activate timezone from session if set
     'core.middleware.SessionTimeZoneMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',

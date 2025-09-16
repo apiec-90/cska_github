@@ -551,11 +551,11 @@ class TestDataCreator:
         print(f"✅ Attendance tracking: Working")
         
         print(f"\n🔑 LOGIN CREDENTIALS:")
-        print(f"Superuser: admin / admin123")
-        print(f"Staff: manager_ivan / staff123")
-        print(f"Trainer: trainer_petrov / trainer123")
-        print(f"Parent: parent_ivanova / parent123")
-        print(f"Athlete: athlete_alexey / athlete123")
+        print("Superuser: admin / admin123")
+        print("Staff: manager_ivan / staff123")
+        print("Trainer: trainer_petrov / trainer123")
+        print("Parent: parent_ivanova / parent123")
+        print("Athlete: athlete_alexey / athlete123")
         
         print("\n🌐 Access URL: http://127.0.0.1:8000/admin/")
         print("="*60)

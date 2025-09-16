@@ -9,9 +9,9 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cska_django_supabase.settings')
 django.setup()
 
-from django.contrib.auth.models import User, Group
-from core.models import Athlete, Parent, Trainer, Staff
-from datetime import date
+from django.contrib.auth.models import User, Group  # noqa: E402
+from core.models import Athlete, Parent, Trainer, Staff  # noqa: E402
+from datetime import date  # noqa: E402
 
 def fix_user_profile_mismatches():
     """Find and fix mismatches between users and their profiles"""
@@ -98,7 +98,7 @@ def fix_user_profile_mismatches():
                 print("  ✅ Staff profile exists")
     
     # Check profiles without proper groups
-    print(f"\n🔍 CHECKING PROFILES WITHOUT GROUPS")
+    print("\n🔍 CHECKING PROFILES WITHOUT GROUPS")
     print("=" * 50)
     
     for athlete in Athlete.objects.all():
@@ -137,7 +137,7 @@ def fix_user_profile_mismatches():
             fixes_applied += 1
             print("  ✅ Added to 'Сотрудники' group")
     
-    print(f"\n📊 SUMMARY")
+    print("\n📊 SUMMARY")
     print("=" * 50)
     print(f"Total users: {User.objects.count()}")
     print(f"Athletes: {Athlete.objects.count()}")
@@ -148,18 +148,18 @@ def fix_user_profile_mismatches():
     print(f"Fixes applied: {fixes_applied}")
     
     if mismatches_found == 0:
-        print(f"\n✅ NO MISMATCHES FOUND - All users have proper profiles and groups!")
+        print("\n✅ NO MISMATCHES FOUND - All users have proper profiles and groups!")
         return True
     elif fixes_applied == mismatches_found:
-        print(f"\n🔧 ALL MISMATCHES FIXED - Users now have proper profiles and groups!")
+        print("\n🔧 ALL MISMATCHES FIXED - Users now have proper profiles and groups!")
         return True
     else:
-        print(f"\n❌ SOME MISMATCHES COULD NOT BE FIXED")
+        print("\n❌ SOME MISMATCHES COULD NOT BE FIXED")
         return False
 
 if __name__ == "__main__":
     success = fix_user_profile_mismatches()
     if success:
-        print(f"\n🎉 USER/PROFILE SYNC: COMPLETED")
+        print("\n🎉 USER/PROFILE SYNC: COMPLETED")
     else:
-        print(f"\n💥 USER/PROFILE SYNC: FAILED")
+        print("\n💥 USER/PROFILE SYNC: FAILED")

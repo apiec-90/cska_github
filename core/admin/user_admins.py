@@ -68,7 +68,7 @@ class TrainerAdmin(BaseDocumentMixin, BasePersonAdmin, BaseChangeFormMixin):
     def get_queryset(self, request):
         """Оптимизация запросов"""
         qs = super().get_queryset(request)
-        return qs.prefetch_related('traininggroup_set')
+        return qs.select_related('user').prefetch_related('traininggroup_set')
     
     def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
         """Добавляем группы тренера в контекст"""
@@ -116,6 +116,11 @@ class StaffAdmin(BasePersonAdmin):
         """Отображение роли сотрудника"""
         return obj.get_role_display()
     get_role_display.short_description = "Роль"
+    
+    def get_queryset(self, request):
+        """Оптимизация запросов"""
+        qs = super().get_queryset(request)
+        return qs.select_related('user')
 
 
 @admin.register(Parent)
@@ -163,7 +168,7 @@ class ParentAdmin(BaseDocumentMixin, BasePersonAdmin, BaseChangeFormMixin):
     def get_queryset(self, request):
         """Оптимизация запросов"""
         qs = super().get_queryset(request)
-        return qs.prefetch_related('athleteparent_set__athlete__user')
+        return qs.select_related('user').prefetch_related('athleteparent_set__athlete__user')
     
     def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
         """Добавляем детей родителя в контекст"""
@@ -241,7 +246,7 @@ class AthleteAdmin(BaseDocumentMixin, BasePersonAdmin, BaseChangeFormMixin):
     def get_queryset(self, request):
         """Оптимизация запросов"""
         qs = super().get_queryset(request)
-        return qs.prefetch_related(
+        return qs.select_related('user').prefetch_related(
             'athletetraininggroup_set__training_group',
             'athleteparent_set__parent__user'
         )

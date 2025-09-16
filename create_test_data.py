@@ -5,7 +5,6 @@
 """
 
 import os
-import sys
 import django
 from datetime import date, time
 
@@ -13,10 +12,10 @@ from datetime import date, time
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'sportcrm.settings')
 django.setup()
 
-from groups.models import Group
-from athletes.models import Athlete
-from attendance.models import Attendance
-from payments.models import Payment
+from groups.models import Group  # noqa: E402
+from athletes.models import Athlete  # noqa: E402
+from attendance.models import Attendance  # noqa: E402
+from payments.models import Payment  # noqa: E402
 
 def create_test_data():
     """Создание тестовых данных"""

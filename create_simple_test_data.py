@@ -5,17 +5,16 @@ Creates basic test users and data to verify 4-step registration system.
 """
 
 import os
-import sys
 import django
-from datetime import date, datetime, timedelta
+from datetime import date
 
 # Set up Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cska_django_supabase.settings')
 django.setup()
 
-from django.contrib.auth.models import User, Group
-from core.models import (
-    Staff, Trainer, Parent, Athlete, TrainingGroup, AthleteParent, 
+from django.contrib.auth.models import User, Group  # noqa: E402
+from core.models import (  # noqa: E402
+    Staff, Trainer, Parent, Athlete, TrainingGroup,
     AthleteTrainingGroup, RegistrationDraft, PaymentMethod
 )
 
@@ -210,16 +209,16 @@ def create_basic_test_data():
     print(f"🏊‍♂️ Training Groups: {TrainingGroup.objects.count()}")
     print(f"🔐 Registration Drafts: {RegistrationDraft.objects.count()}")
     
-    print(f"\n🔑 LOGIN CREDENTIALS:")
-    print(f"Superuser: admin / admin123")
-    print(f"Staff: manager_ivan / staff123") 
-    print(f"Trainer: trainer_petrov / trainer123")
-    print(f"Parent: parent_ivanova / parent123")
-    print(f"Athlete: athlete_alexey / athlete123")
+    print("\n🔑 LOGIN CREDENTIALS:")
+    print("Superuser: admin / admin123")
+    print("Staff: manager_ivan / staff123") 
+    print("Trainer: trainer_petrov / trainer123")
+    print("Parent: parent_ivanova / parent123")
+    print("Athlete: athlete_alexey / athlete123")
     
-    print(f"\n✅ 4-step registration system: Working")
-    print(f"✅ Role assignments: Working")
-    print(f"✅ Group relationships: Working")
+    print("\n✅ 4-step registration system: Working")
+    print("✅ Role assignments: Working")
+    print("✅ Group relationships: Working")
     
     print("\n🌐 Access URL: http://127.0.0.1:8000/admin/")
     print("="*50)
@@ -232,4 +231,5 @@ if __name__ == '__main__':
         print(f"\n❌ Error: {e}")
         import traceback
         traceback.print_exc()
+        import sys
         sys.exit(1)

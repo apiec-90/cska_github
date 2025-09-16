@@ -4,7 +4,7 @@
 """
 import os
 import django
-from django.conf import settings
+ 
 
 # Настройка Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cska_django_supabase.settings')
@@ -21,7 +21,7 @@ def test_connection():
             # Проверяем версию PostgreSQL
             cursor.execute("SELECT version();")
             version = cursor.fetchone()
-            print(f"✅ Подключение успешно!")
+            print("✅ Подключение успешно!")
             print(f"📊 PostgreSQL версия: {version[0][:50]}...")
             
             # Проверяем количество таблиц
@@ -90,7 +90,7 @@ def test_models():
     print("\n🔍 Тестирование моделей приложения...")
     
     try:
-        from core.models import Staff, Athlete, Parent, TrainingGroup, PaymentMethod
+        from core.models import Staff, Athlete, TrainingGroup, PaymentMethod
         from django.contrib.auth.models import User
         
         # Создаем пользователя для тестов

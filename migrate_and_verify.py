@@ -3,7 +3,6 @@
 Скрипт для выполнения миграций и проверки данных в Supabase
 """
 import os
-import sys
 import django
 from django.core.management import call_command
 from django.db import connection, transaction
@@ -241,7 +240,7 @@ def verify_data_integrity():
         group_count = TrainingGroup.objects.count()
         payment_method_count = PaymentMethod.objects.count()
         
-        print(f"📊 Статистика данных:")
+        print("📊 Статистика данных:")
         print(f"  - Пользователей: {user_count}")
         print(f"  - Сотрудников: {staff_count}")
         print(f"  - Спортсменов: {athlete_count}")

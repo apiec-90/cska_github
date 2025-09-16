@@ -14,12 +14,12 @@ from typing import TYPE_CHECKING
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cska_django_supabase.settings')
 django.setup()
 
-from django.contrib.auth.models import User, Group
-from core.models import (
+from django.contrib.auth.models import User, Group  # noqa: E402
+from core.models import (  # noqa: E402
     RegistrationDraft, Staff, Trainer, Parent, Athlete, 
     TrainingGroup, AthleteTrainingGroup, AthleteParent
 )
-from django.urls import reverse
+from django.urls import reverse  # noqa: E402
 
 # Type checking workaround for Django models
 if TYPE_CHECKING:
@@ -200,15 +200,15 @@ def verify_registration_system():
     print(f"👨‍👩‍👧‍👦 Parent-child relations: {AthleteParent.objects.count()}")  # type: ignore
     print(f"👥 Athlete-group relations: {AthleteTrainingGroup.objects.count()}")  # type: ignore
     
-    print(f"\n✅ SYSTEM STATUS: OPERATIONAL")
-    print(f"✅ 4-step registration: WORKING")
-    print(f"✅ Role assignments: WORKING") 
-    print(f"✅ Group management: WORKING")
-    print(f"✅ Relationships: WORKING")
-    print(f"✅ Autocomplete search: WORKING")
+    print("\n✅ SYSTEM STATUS: OPERATIONAL")
+    print("✅ 4-step registration: WORKING")
+    print("✅ Role assignments: WORKING") 
+    print("✅ Group management: WORKING")
+    print("✅ Relationships: WORKING")
+    print("✅ Autocomplete search: WORKING")
     
-    print(f"\n🌐 Django server should be running at: http://127.0.0.1:8000/admin/")
-    print(f"🔑 Login with: admin / admin123")
+    print("\n🌐 Django server should be running at: http://127.0.0.1:8000/admin/")
+    print("🔑 Login with: admin / admin123")
     
     print("=" * 60)
 

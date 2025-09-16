@@ -240,20 +240,37 @@ class BaseDocumentMixin:
             model_name = self.model._meta.model_name
             file_name = f"{model_name}_{obj.id}_{uuid.uuid4().hex[:8]}.{file_extension}"
             
-            # Save file
-            upload_path = os.path.join(settings.MEDIA_ROOT, 'avatars')
-            os.makedirs(upload_path, exist_ok=True)
+            # Read file data
+            file_data = b''
+            for chunk in file_obj.chunks():
+                file_data += chunk
             
-            file_path = os.path.join(upload_path, file_name)
-            with open(file_path, 'wb') as f:
-                for chunk in file_obj.chunks():
-                    f.write(chunk)
+            # Try to upload to Supabase Storage first
+            from core.utils.supabase_storage import upload_to_supabase_storage
+            supabase_path = f"avatars/{file_name}"
+            success, result = upload_to_supabase_storage(file_data, supabase_path)
             
-            # Delete old avatars
+            if success:
+                # Supabase upload successful
+                messages.success(request, f'Avatar uploaded to Supabase Storage: {file_name}')
+                supabase_url = result
+            else:
+                # Fallback to local storage
+                upload_path = os.path.join(settings.MEDIA_ROOT, 'avatars')
+                os.makedirs(upload_path, exist_ok=True)
+                
+                file_path = os.path.join(upload_path, file_name)
+                with open(file_path, 'wb') as f:
+                    f.write(file_data)
+                
+                messages.warning(request, f'Avatar saved locally (Supabase error: {result})')
+                supabase_url = None
+            
+            # Delete old avatars (both local and Supabase)
             self._delete_old_avatars(obj)
             
-            # Create Document record
-            self._create_avatar_document(obj, file_name, file_obj, request.user)
+            # Create Document record with Supabase URL if available
+            self._create_avatar_document(obj, file_name, file_obj, request.user, supabase_url)
             
             messages.success(request, 'Avatar uploaded successfully')
             
@@ -293,27 +310,51 @@ class BaseDocumentMixin:
             file_extension = os.path.splitext(file_obj.name)[1]
             file_name = f"{model_name}_{obj.id}_doc_{uuid.uuid4().hex[:8]}{file_extension}"
             
-            # Сохраняем файл
-            upload_path = os.path.join(settings.MEDIA_ROOT, 'documents')
-            os.makedirs(upload_path, exist_ok=True)
+            # Read file data
+            file_data = b''
+            for chunk in file_obj.chunks():
+                file_data += chunk
             
-            file_path = os.path.join(upload_path, file_name)
-            with open(file_path, 'wb') as f:
-                for chunk in file_obj.chunks():
-                    f.write(chunk)
+            # Try to upload to Supabase Storage first
+            from core.utils.supabase_storage import upload_to_supabase_storage
+            supabase_path = f"documents/{file_name}"
+            success, result = upload_to_supabase_storage(file_data, supabase_path)
             
-            # Создаем запись в Document
-            self._create_document_record(obj, file_name, file_obj, comment, document_type_id, request.user)
+            if success:
+                # Supabase upload successful
+                messages.success(request, f'Document uploaded to Supabase Storage: {file_name}')
+                supabase_url = result
+                file_storage_path = supabase_url
+            else:
+                # Fallback to local storage
+                upload_path = os.path.join(settings.MEDIA_ROOT, 'documents')
+                os.makedirs(upload_path, exist_ok=True)
+                
+                file_path = os.path.join(upload_path, file_name)
+                with open(file_path, 'wb') as f:
+                    f.write(file_data)
+                
+                messages.warning(request, f'Document saved locally (Supabase error: {result})')
+                file_storage_path = f'documents/{file_name}'
+            
+            # Создаем запись в Document с правильным путем
+            self._create_document_record(obj, file_name, file_obj, comment, document_type_id, request.user, file_storage_path)
             
             messages.success(request, 'Документ успешно загружен')
             
             # Для AJAX запросов возвращаем JSON
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', ''):
                 from django.http import JsonResponse
+                # Return appropriate URL based on storage location
+                if success:
+                    file_url = supabase_url
+                else:
+                    file_url = f'/media/documents/{file_name}'
+                
                 return JsonResponse({
                     'success': True, 
                     'message': 'Документ успешно загружен',
-                    'file_url': f'/media/documents/{file_name}',
+                    'file_url': file_url,
                     'file_name': file_name
                 })
                 
@@ -353,7 +394,7 @@ class BaseDocumentMixin:
         return HttpResponseRedirect(request.META.get('HTTP_REFERER', '.'))
     
     def _delete_old_avatars(self, obj: Any) -> None:
-        """Delete old object avatars"""
+        """Delete old object avatars (both local and Supabase)"""
         from core.models import Document, DocumentType
         try:
             avatar_type = DocumentType.objects.get(name='Avatar')
@@ -364,30 +405,49 @@ class BaseDocumentMixin:
                 document_type=avatar_type
             )
             for avatar in old_avatars:
-                self._delete_physical_file(avatar.file)
+                # Try to delete from Supabase Storage if it's a Supabase URL
+                if avatar.file.startswith('http') and 'supabase' in avatar.file:
+                    # Extract file path from Supabase URL
+                    # URL format: https://xxx.supabase.co/storage/v1/object/public/media/avatars/filename.jpg
+                    try:
+                        path_parts = avatar.file.split('/storage/v1/object/public/media/')
+                        if len(path_parts) > 1:
+                            file_path = path_parts[1]
+                            from core.utils.supabase_storage import delete_from_supabase_storage
+                            delete_from_supabase_storage(file_path)
+                    except Exception:
+                        pass
+                else:
+                    # Delete local file
+                    self._delete_physical_file(avatar.file)
+                
                 avatar.delete()
         except Exception:
             pass  # Not critical if deletion fails
     
-    def _create_avatar_document(self, obj: Any, file_name: str, file_obj: Any, user: Any) -> None:
+    def _create_avatar_document(self, obj: Any, file_name: str, file_obj: Any, user: Any, supabase_url: str = None) -> None:
         """Create Document record for avatar"""
         from core.models import Document, DocumentType
         
         avatar_type, _ = DocumentType.objects.get_or_create(name='Avatar')
         ct = ContentType.objects.get_for_model(self.model)
         
+        # Use Supabase URL if available, otherwise use local path
+        file_path = supabase_url if supabase_url else f'avatars/{file_name}'
+        comment = 'Uploaded to Supabase Storage' if supabase_url else 'Uploaded locally'
+        
         Document.objects.create(
             document_type=avatar_type,
             content_type=ct,
             object_id=obj.id,
-            file=f'avatars/{file_name}',
+            file=file_path,
             file_type=file_obj.content_type,
             file_size=file_obj.size,
             uploaded_by=user,
-            comment='Uploaded as avatar'
+            comment=comment
         )
     
-    def _create_document_record(self, obj: Any, file_name: str, file_obj: Any, comment: str, document_type_id: str, user: Any) -> None:
+    def _create_document_record(self, obj: Any, file_name: str, file_obj: Any, comment: str, document_type_id: str, user: Any, file_path: str = None) -> None:
         """Create Document record for document"""
         from core.models import Document, DocumentType
         
@@ -402,15 +462,23 @@ class BaseDocumentMixin:
         
         ct = ContentType.objects.get_for_model(self.model)
         
+        # Use provided file_path or fallback to local path
+        storage_path = file_path if file_path else f'documents/{file_name}'
+        storage_comment = comment
+        
+        # Add storage info to comment
+        if file_path and 'supabase' in file_path.lower():
+            storage_comment = f"{comment} (Uploaded to Supabase Storage)" if comment else "Uploaded to Supabase Storage"
+        
         Document.objects.create(
             document_type=doc_type,
             content_type=ct,
             object_id=obj.id,
-            file=f'documents/{file_name}',
+            file=storage_path,
             file_type=file_obj.content_type,
             file_size=file_obj.size,
             uploaded_by=user,
-            comment=comment
+            comment=storage_comment
         )
     
     def _delete_physical_file(self, file_path: str) -> None:

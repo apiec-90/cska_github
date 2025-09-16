@@ -5,8 +5,8 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cska_django_supabase.settings')
 django.setup()
 
-from django.contrib.auth.models import User
-from core.models import Athlete, Parent, Trainer, Staff
+from django.contrib.auth.models import User  # noqa: E402
+from core.models import Athlete, Parent, Trainer, Staff  # noqa: E402
 
 # Check current state
 print("=== CURRENT DATABASE STATE ===")
